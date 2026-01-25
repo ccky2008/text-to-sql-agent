@@ -1,0 +1,210 @@
+[
+  {
+    "question": "Find EC2 instances with CPU greater than 4 and memory greater than 8GB",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"vCpu\" > 4\n      AND \"memoryInGib\" > 8\n      AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me all instances where vCPU is bigger than 4 and memoryInGib is bigger than 8",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"vCpu\" > 4\n      AND \"memoryInGib\" > 8\n      AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which EC2s have more than 4 cores and more than 8 gigabytes of memory?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"vCpu\" > 4\n      AND \"memoryInGib\" > 8\n      AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "List all instances with at least 4 vCPUs and 8GB RAM",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"vCpu\" > 4\n      AND \"memoryInGib\" > 8\n      AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Can you show me EC2s that have over 4 CPUs or over 8GB memory?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE (\"vCpu\" > 4 OR \"memoryInGib\" > 8)\n      AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Which instances have exactly 4 vCPUs?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"vCpu\" = 4\n    AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Find EC2 instances with CPU greater than 4 and memory greater than 8GB",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"memoryInGib\" > 32\n    AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "How many EC2 instances are x86_64 architecture?",
+    "sql_query": "SELECT \"instanceType\", COUNT(*) AS instance_count\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"architecture\" = 'x86_64'\n    AND \"deletedAt\" IS NULL\n    GROUP BY \"instanceType\""
+  },
+  {
+    "question": "Show me all EC2s with x86_64 architecture",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"architecture\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"architecture\" = 'x86_64'\n    AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Display all instances that are x64",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"architecture\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"architecture\" = 'x86_64'\n    AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "List EC2s running on x86_64",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"architecture\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"architecture\" = 'x86_64'\n    AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Which instances use ARM architecture?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"architecture\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"architecture\" = 'x86_64'\n    AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Do we have any ARM-based EC2s?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"architecture\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"architecture\" ILIKE '%arm%'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find all x64 instances",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"architecture\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE (\"architecture\" ILIKE '%x86_64%' \n    OR \"architecture\" ILIKE '%x64%'\n    OR \"architecture\" ILIKE '%amd64%')\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Count instances by architecture type",
+    "sql_query": "SELECT \n        \"architecture\",\n        COUNT(*) AS \"instance_count\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"deletedAt\" IS NULL\n    GROUP BY \"architecture\"\n    ORDER BY \"instance_count\" DESC;"
+  },
+  {
+    "question": "How many different architectures do we use?",
+    "sql_query": "SELECT COUNT(DISTINCT \"architecture\") AS architecture_count\n  FROM \"public\".\"aws_ec2\"\n  WHERE \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "How many EC2 instances were created today?",
+    "sql_query": "SELECT COUNT(*) AS instance_count\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '1 day'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me all EC2s created today",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '1 day'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "List instances launched today",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '1 day'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which EC2s were created today?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '1 day'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Display EC2s with today's creation date",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE DATE(\"resourceCreationTime\") = CURRENT_DATE\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Get me instances created in the last 24 hours",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '24 hours'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "How many EC2s were created this month?",
+    "sql_query": "SELECT COUNT(*) AS instance_count\n    FROM \"public\".\"aws_ec2\"\n    WHERE DATE_TRUNC('month', \"resourceCreationTime\") = DATE_TRUNC('month', CURRENT_DATE)\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me all EC2 instances created this month",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE DATE_TRUNC('month', \"resourceCreationTime\") = DATE_TRUNC('month', CURRENT_DATE)\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "List all EC2s created in the current month",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE DATE_TRUNC('month', \"resourceCreationTime\") = DATE_TRUNC('month', CURRENT_DATE)\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "List instances that created in the last 90 days",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '90 days'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me all EC2 instances created last 14 days",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '14 days'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "find all EC2 instances created yesterday",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"resourceCreationTime\" >= NOW() - INTERVAL '1 day'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "find all EC2 instances created this week",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE DATE_TRUNC('week', \"resourceCreationTime\") = DATE_TRUNC('week', CURRENT_DATE)\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which EC2 instances are publicly accessible?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NOT NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me all instances with public IP addresses",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NOT NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find EC2s that have a public IP",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NOT NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "List all EC2s with public IPs",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NOT NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "How many instances are publicly accessible?",
+    "sql_query": "SELECT COUNT(*) AS instance_count\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NOT NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which instances don't have public IP addresses?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find EC2s without public access",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me instances that are not publicly accessible",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" IS NULL\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Is there any EC2 with IP address 10.192.10.13?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"privateIp\" = '10.192.10.13'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find instances with private IP 10.192.10.13",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"privateIp\" = '10.192.10.13'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which EC2 has the public IP 54.123.45.67?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"publicIp\" = '54.123.45.67'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Search for instances with IP 10.192.10.13 in either public or private",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"privateIp\" = '10.192.10.13'\n    OR \"publicIp\" = '10.192.10.13'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find all instances with private IPs starting with 10.192",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"privateIp\" LIKE '10.192.%'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which EC2s have private IP in the 172.16.0.0 range?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"privateIp\" LIKE '172.16.%'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Does EC2 instance with ID i-00132113 exist?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"instanceId\" = 'i-00132113'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find instance with ID i-00132113",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"instanceId\" = 'i-00132113'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Check if instance i-00132113 exists",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"instanceId\" = 'i-00132113'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me details for instance i-00132113",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"instanceId\" = 'i-00132113'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Find EC2 with name 'WVPDHKESG01'",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"name\" = 'WVPDHKESG01'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which instance is named 'WVPDHKESG01'?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"name\" = 'WVPDHKESG01'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show me the instance called 'WVPDHKESG01'",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"name\" = 'WVPDHKESG01'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Search for EC2 by name or instance ID 'i-00132113'",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"name\" = 'i-00132113'\n    OR \"instanceId\" = 'i-00132113'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Which EC2s have 'test' in their name?",
+    "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"name\" LIKE '%test%'\n    AND \"deletedAt\" IS NULL;"
+  }
+]

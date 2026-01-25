@@ -1,0 +1,42 @@
+[
+  {
+    "question": "Show all users",
+    "sql_query": "SELECT id, name, email, created_at FROM users ORDER BY created_at DESC LIMIT 100"
+  },
+  {
+    "question": "Count total orders by status",
+    "sql_query": "SELECT status, COUNT(*) as count FROM orders GROUP BY status ORDER BY count DESC"
+  },
+  {
+    "question": "What is the total revenue for last month?",
+    "sql_query": "SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed' AND created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND created_at < DATE_TRUNC('month', CURRENT_DATE)"
+  },
+  {
+    "question": "Find users who have never placed an order",
+    "sql_query": "SELECT u.id, u.name, u.email FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE o.id IS NULL LIMIT 100"
+  },
+  {
+    "question": "Top 10 customers by total spending",
+    "sql_query": "SELECT u.id, u.name, SUM(o.total_amount) as total_spent FROM users u JOIN orders o ON u.id = o.user_id WHERE o.status = 'completed' GROUP BY u.id, u.name ORDER BY total_spent DESC LIMIT 10"
+  },
+  {
+    "question": "Monthly revenue trend for the past year",
+    "sql_query": "SELECT DATE_TRUNC('month', created_at) as month, SUM(total_amount) as revenue FROM orders WHERE status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '1 year' GROUP BY DATE_TRUNC('month', created_at) ORDER BY month"
+  },
+  {
+    "question": "Products with low stock",
+    "sql_query": "SELECT id, name, stock_quantity FROM products WHERE stock_quantity < 10 ORDER BY stock_quantity ASC LIMIT 50"
+  },
+  {
+    "question": "Average order value by customer segment",
+    "sql_query": "SELECT u.segment, AVG(o.total_amount) as avg_order_value, COUNT(o.id) as order_count FROM users u JOIN orders o ON u.id = o.user_id WHERE o.status = 'completed' GROUP BY u.segment ORDER BY avg_order_value DESC"
+  },
+  {
+    "question": "Order status distribution for the current week",
+    "sql_query": "SELECT status, COUNT(*) as count, ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage FROM orders WHERE created_at >= DATE_TRUNC('week', CURRENT_DATE) GROUP BY status ORDER BY count DESC"
+  },
+  {
+    "question": "Find duplicate email addresses",
+    "sql_query": "SELECT email, COUNT(*) as count FROM users GROUP BY email HAVING COUNT(*) > 1 ORDER BY count DESC LIMIT 100"
+  }
+]

@@ -1,0 +1,43 @@
+{
+  "soft_delete": {
+    "description": "All resource tables use soft delete pattern",
+    "rule": "Always include 'deletedAt IS NULL' filter to exclude deleted records",
+    "applies_to": "All tables with deletedAt column"
+  },
+  "standard_columns": {
+    "sysId": {
+      "description": "Internal system identifier (UUID)",
+      "usage": "Used for internal references and joins within the system"
+    },
+    "objectId": {
+      "description": "External resource identifier from cloud provider",
+      "rules": [
+        "For tables prefixed with 'aws_': Contains Amazon Resource Name (ARN)",
+        "For tables prefixed with 'azure_': Contains Azure Resource ID"
+      ],
+      "usage": "Used to identify and reference actual cloud resources. Format varies by cloud provider."
+    },
+    "createdAt": {
+      "description": "Record creation timestamp",
+      "usage": "When the record was first inserted into the database"
+    },
+    "updatedAt": {
+      "description": "Last modification timestamp",
+      "usage": "When the record was last updated"
+    },
+    "deletedAt": {
+      "description": "Soft delete timestamp",
+      "usage": "NULL means active record, non-NULL means deleted. Always filter 'deletedAt IS NULL' for active records."
+    }
+  },
+  "sql_conventions": [
+    "Use double quotes for column and table names (PostgreSQL standard)",
+    "Default schema is 'public'",
+    "Use table aliases for clarity in JOINs",
+    "Include LIMIT clause to prevent large result sets"
+  ],
+  "table_prefixes": {
+    "aws_": "Amazon Web Services resources",
+    "azure_": "Microsoft Azure resources"
+  }
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "question": "Find all EC2 instances in production environment",
+    "sql_query": "SELECT e.\"instanceId\", e.\"name\", e.\"instanceType\", e.\"state\"\n    FROM \"aws_ec2\" e\n    JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\"\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCP-Environment'\n    AND kv.\"value\" = 'PRD'\n    AND e.\"deletedAt\" IS NULL\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Show EC2 instances owned by application Opus",
+    "sql_query": "SELECT e.\"instanceId\", e.\"name\", e.\"instanceType\", kv.\"value\" as app_name\n    FROM \"aws_ec2\" e\n    JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\"\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCP-ApplicationName'\n    AND kv.\"value\" = 'Opus'\n    AND e.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "List all resources with tag DCP-AppRef GIT-8OQ9K2",
+    "sql_query": "SELECT ci.\"class\" as resource_type, ci.\"objectId\", kv.\"value\" as app_ref\n    FROM \"configuration_item\" ci\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCP-AppRef'\n    AND kv.\"value\" = 'GIT-8OQ9K2'\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Count resources by business unit",
+    "sql_query": "SELECT kv.\"value\" as business_unit, COUNT(*) as resource_count\n    FROM \"configuration_item\" ci\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCPAccount-BUCode'\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL\n    GROUP BY kv.\"value\"\n    ORDER BY resource_count DESC"
+  },
+  {
+    "question": "Show me all virtual machines across AWS and Azure with their memory and CPU specs",
+    "sql_query": "SELECT \n        'AWS' as cloud_provider,\n        \"name\",\n        \"instanceType\" as size,\n        \"memoryInGib\",\n        \"vCpu\",\n        \"privateIp\"\n    FROM \"aws_ec2\" \n    WHERE \"deletedAt\" IS NULL\n    UNION ALL\n    SELECT \n        'Azure' as cloud_provider,\n        \"name\",\n        \"size\",\n        \"memoryInGib\",\n        \"vCpu\",\n        \"privateIp\"\n    FROM \"azure_vm\" \n    WHERE \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Show me all Azure storage accounts where access keys were created last year",
+    "sql_query": "SELECT \n        \"name\",\n        \"kind\",\n        \"sku\",\n        \"key1CreationTime\",\n        \"key2CreationTime\",\n        \"objectId\"\n    FROM \"azure_storage_account\"\n    WHERE (\n        EXTRACT(YEAR FROM \"key1CreationTime\") = EXTRACT(YEAR FROM CURRENT_DATE) - 1\n        OR EXTRACT(YEAR FROM \"key2CreationTime\") = EXTRACT(YEAR FROM CURRENT_DATE) - 1\n    )\n    AND \"deletedAt\" IS NULL\n    ORDER BY \"key1CreationTime\" DESC, \"key2CreationTime\" DESC"
+  },
+  {
+    "question": "Find all Azure AKS clusters that are publicly accessible",
+    "sql_query": "SELECT \n        \"name\",\n        \"version\",\n        \"sku\",\n        \"fqdn\",\n        \"isPublicAccess\",\n        \"objectId\"\n    FROM \"azure_aks\"\n    WHERE \"isPublicAccess\" = true\n    AND \"deletedAt\" IS NULL\n    ORDER BY \"name\""
+  },
+  {
+    "question": "Find all AWS EKS under group information technology business unit",
+    "sql_query": "SELECT COUNT(DISTINCT(\"awseksentity\".\"sysId\")) AS \"cnt\" \n        FROM \"aws_eks\" \"awseksentity\" \n        LEFT JOIN \"configuration_item\" \"ci\" ON  \"awseksentity\".\"sysId\" = \"ci\".\"sysId\" \n        AND \"ci\".\"deletedAt\" IS NULL  \n        LEFT JOIN \"key_value\" \"tag\" ON  \"ci\".\"objectId\" = \"tag\".\"objectId\" \n        AND \"tag\".\"deletedAt\" IS NULL \n        WHERE ( 1 = 1 \n            AND EXISTS (\n            SELECT 1\n            FROM aws_account\n            LEFT JOIN configuration_item ci ON aws_account.\"sysId\" = ci.\"sysId\"\n            LEFT JOIN key_value tag ON ci.\"objectId\" = tag.\"objectId\"\n            WHERE \"tag\".\"key\" ILIKE '%DCPAccount-BuCode%'\n            AND \"tag\".\"value\" ILIKE '%GIT%'\n            AND awseksentity.\"objectId\" LIKE '%' || aws_account.\"accountId\" || '%')\n        ) \n      AND ( \"awseksentity\".\"deletedAt\" IS NULL )"
+  },
+  {
+    "question": "Show me all AWS EC2 instances that were created this year",
+    "sql_query": "SELECT \n        \"name\",\n        \"instanceId\",\n        \"instanceType\",\n        \"resourceCreationTime\",\n        \"objectId\"\n    FROM \"aws_ec2\"\n    WHERE EXTRACT(YEAR FROM \"resourceCreationTime\") = EXTRACT(YEAR FROM CURRENT_DATE)\n    AND \"deletedAt\" IS NULL\n    ORDER BY \"resourceCreationTime\" DESC"
+  },
+  {
+    "question": "Show me all AWS EC2 instances that have AutoStartStop enabled",
+    "sql_query": "SELECT \n        e.\"name\",\n        e.\"instanceId\",\n        e.\"instanceType\",\n        e.\"privateIp\",\n        e.\"objectId\",\n        kv.\"value\" as autostop_status\n    FROM \"aws_ec2\" e\n    JOIN \"key_value\" kv ON e.\"objectId\" = kv.\"objectId\"\n    WHERE UPPER(kv.\"key\") = UPPER('AutoStartStop') \n    AND UPPER(kv.\"value\") = UPPER('true')\n    AND e.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Find all AWS EC2 instances that don't have AutoStartStop configured",
+    "sql_query": "SELECT \n        e.\"name\",\n        e.\"instanceId\",\n        e.\"instanceType\",\n        e.\"privateIp\",\n        e.\"objectId\"\n    FROM \"aws_ec2\" e\n    WHERE e.\"objectId\" NOT IN (\n        SELECT DISTINCT \"objectId\" \n        FROM \"key_value\" \n        WHERE UPPER(\"key\") = UPPER('AutoStartStop')\n    )\n    AND e.\"deletedAt\" IS NULL"
+  }
+]

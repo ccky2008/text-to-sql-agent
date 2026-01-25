@@ -1,0 +1,58 @@
+[
+  {
+    "title": "Active User",
+    "content": "An active user is defined as a user who has logged in at least once in the past 30 days. This is tracked via the last_login_at column in the users table.",
+    "category": "domain_term",
+    "related_tables": ["users"],
+    "keywords": ["active", "login", "user", "engagement"]
+  },
+  {
+    "title": "Revenue Calculation",
+    "content": "Revenue is calculated as the sum of total_amount from orders with status = 'completed'. Refunded orders are excluded. Pending and processing orders should not be counted.",
+    "category": "business_rule",
+    "related_tables": ["orders"],
+    "keywords": ["revenue", "sales", "completed", "calculation"]
+  },
+  {
+    "title": "Customer Segment",
+    "content": "Customers are segmented into: 'premium' (lifetime spending > $10000), 'regular' (spending $1000-$10000), 'basic' (spending < $1000). The segment field in users table is updated monthly.",
+    "category": "business_rule",
+    "related_tables": ["users", "orders"],
+    "keywords": ["segment", "customer", "premium", "classification"]
+  },
+  {
+    "title": "Order Status Flow",
+    "content": "Orders go through statuses: 'pending' -> 'processing' -> 'shipped' -> 'delivered' -> 'completed'. Orders can also be 'cancelled' or 'refunded' at various stages.",
+    "category": "context",
+    "related_tables": ["orders"],
+    "keywords": ["order", "status", "workflow", "lifecycle"]
+  },
+  {
+    "title": "Fiscal Year",
+    "content": "Our fiscal year runs from April 1 to March 31. When querying for 'this year' or 'last year', consider whether fiscal or calendar year is intended.",
+    "category": "business_rule",
+    "related_tables": [],
+    "keywords": ["fiscal", "year", "financial", "date"]
+  },
+  {
+    "title": "Product Categories",
+    "content": "Products are organized in a hierarchical category structure. The category_id in products references the categories table which has parent_id for hierarchy.",
+    "category": "context",
+    "related_tables": ["products", "categories"],
+    "keywords": ["product", "category", "hierarchy"]
+  },
+  {
+    "title": "Soft Delete Policy",
+    "content": "Records are soft-deleted using deleted_at timestamp. Queries should typically filter WHERE deleted_at IS NULL unless specifically analyzing deleted records.",
+    "category": "business_rule",
+    "related_tables": ["users", "products", "orders"],
+    "keywords": ["delete", "soft delete", "archive"]
+  },
+  {
+    "title": "Currency",
+    "content": "All monetary values (order amounts, product prices) are stored in cents as integers. Divide by 100 to get dollar amounts for display.",
+    "category": "context",
+    "related_tables": ["orders", "products"],
+    "keywords": ["currency", "money", "cents", "dollars"]
+  }
+]

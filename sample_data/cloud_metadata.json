@@ -1,0 +1,51 @@
+[
+  {
+    "title": "configuration_item Table Purpose",
+    "content": "Central registry table for all cloud resources. Contains: sysId (UUID matching resource table), objectId (ARN or Azure Resource ID), class (source table name e.g. 'aws_ec2'). Every aws_* and azure_* record has a corresponding configuration_item record.",
+    "category": "context",
+    "related_tables": ["configuration_item"],
+    "keywords": ["configuration_item", "registry", "class"]
+  },
+  {
+    "title": "key_value Table Purpose",
+    "content": "Stores resource tags and metadata as key-value pairs. Contains: sysId (UUID), objectId (ARN or Azure Resource ID), key (tag name), value (tag value). Each resource can have multiple key_value records.",
+    "category": "context",
+    "related_tables": ["key_value"],
+    "keywords": ["key_value", "tags", "labels"]
+  },
+  {
+    "title": "Tag Query Join Pattern",
+    "content": "To query resources by tags: JOIN resource table to configuration_item ON sysId, then JOIN key_value ON objectId. Pattern: resource.sysId = configuration_item.sysId AND configuration_item.objectId = key_value.objectId",
+    "category": "business_rule",
+    "related_tables": ["configuration_item", "key_value"],
+    "keywords": ["tag", "join", "query", "filter", "metadata"]
+  },
+  {
+    "title": "DCP-Environment Tag",
+    "content": "Deployment environment tag. Valid values: DEV (Development), SIT (System Integration Testing), UAT (User Acceptance Testing), PRD (Production), STG (Staging), RAT (Release Acceptance Testing).",
+    "category": "domain_term",
+    "related_tables": ["key_value"],
+    "keywords": ["DCP-Environment", "environment", "DEV", "SIT", "UAT", "PRD", "STG", "RAT"]
+  },
+  {
+    "title": "DCPAccount-BUCode Tag",
+    "content": "Business unit code tag. Valid values: GO, CORE, GIT, DGT, FIN, GHR, GTR, GHC, GDP, GOI, GOC, MYS, SGP, THA, IDN, KHM, PHL, VNM, JPN, HKG, CTC, FIB.",
+    "category": "domain_term",
+    "related_tables": ["key_value"],
+    "keywords": ["DCPAccount-BUCode", "business unit", "BU", "BUCode"]
+  },
+  {
+    "title": "DCP-AppRef Tag",
+    "content": "Unique application identifier tag. Format: prefix-alphanumeric code (e.g. 'GIT-8OQ9K2'). Used to identify which application owns the resource.",
+    "category": "domain_term",
+    "related_tables": ["key_value"],
+    "keywords": ["DCP-AppRef", "application", "app", "reference", "identifier"]
+  },
+  {
+    "title": "Application Tags",
+    "content": "Application-related tags: DCP-ApplicationName (application name), DCP-ApplicationOwner (responsible team/person), DCP-CostCenter (cost center code), DCPAccount-InvoiceOwner (invoice owner).",
+    "category": "domain_term",
+    "related_tables": ["key_value"],
+    "keywords": ["DCP-ApplicationName", "DCP-ApplicationOwner", "DCP-CostCenter", "DCPAccount-InvoiceOwner", "application", "owner", "cost"]
+  }
+]
