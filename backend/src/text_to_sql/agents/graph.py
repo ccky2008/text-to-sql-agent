@@ -41,8 +41,8 @@ def increment_retry(state: AgentState) -> dict:
     return {"retry_count": state.get("retry_count", 0) + 1}
 
 
-def create_agent_graph(with_checkpointer: bool = True) -> StateGraph:
-    """Create the text-to-SQL agent graph.
+def _build_graph() -> StateGraph:
+    """Build the graph structure without compiling.
 
     Graph flow:
     1. Retrieval - Fetch context from vector stores
@@ -97,10 +97,17 @@ def create_agent_graph(with_checkpointer: bool = True) -> StateGraph:
     # Responder is the end
     graph.add_edge("responder", END)
 
-    # Compile with checkpointer for session persistence
+    return graph
+
+
+async def create_agent_graph(with_checkpointer: bool = True):
+    """Create and compile the text-to-SQL agent graph."""
+    graph = _build_graph()
+
     if with_checkpointer:
         session_manager = get_session_manager()
-        return graph.compile(checkpointer=session_manager.checkpointer)
+        checkpointer = await session_manager._init_checkpointer()
+        return graph.compile(checkpointer=checkpointer)
 
     return graph.compile()
 
@@ -109,9 +116,9 @@ def create_agent_graph(with_checkpointer: bool = True) -> StateGraph:
 _agent_graph = None
 
 
-def get_agent_graph() -> StateGraph:
+async def get_agent_graph():
     """Get the singleton agent graph instance."""
     global _agent_graph
     if _agent_graph is None:
-        _agent_graph = create_agent_graph()
+        _agent_graph = await create_agent_graph()
     return _agent_graph

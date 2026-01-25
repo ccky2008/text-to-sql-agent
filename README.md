@@ -1,10 +1,29 @@
 # Text-to-SQL AI Agent
 
-A Python backend service for text-to-SQL (PostgreSQL) AI agents using FastAPI, LangGraph, ChromaDB, and Azure OpenAI.
+A full-stack application for text-to-SQL (PostgreSQL) AI agents using FastAPI, LangGraph, ChromaDB, and Azure OpenAI.
+
+## Project Structure
+
+```
+.
+├── backend/          # Python FastAPI backend
+│   ├── src/          # Source code
+│   ├── tests/        # Test suite
+│   └── sample_data/  # Sample data files
+├── frontend/         # Frontend application (React/TypeScript)
+│   ├── src/          # Source code
+│   └── public/       # Static assets
+├── .env.example      # Environment variables template
+└── README.md         # This file
+```
 
 ## Quick Start
 
+### Backend
+
 ```bash
+cd backend
+
 # Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
@@ -13,12 +32,20 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 
 # Configure
-cp .env.example .env
-# Edit .env with your credentials
+cp ../.env.example ../.env
+# Edit ../.env with your credentials
 
 # Initialize and run
 text-to-sql init
 text-to-sql serve
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
 ## Features
@@ -30,13 +57,15 @@ text-to-sql serve
 - SQL validation and safe execution
 - Session management for conversation continuity
 
-## CLI Commands
+## Backend CLI Commands
 
 ### SQL Pairs (Few-shot Examples)
 
 SQL pairs are question-to-SQL mappings used for few-shot learning.
 
 ```bash
+cd backend
+
 # Import SQL pairs from JSON file
 text-to-sql sql-pairs import sample_data/sql_pairs.json
 text-to-sql sql-pairs import sample_data/ec2_sql_pairs.json
@@ -57,6 +86,8 @@ text-to-sql sql-pairs clear -y
 Metadata entries store business rules, domain terms, and context.
 
 ```bash
+cd backend
+
 # Import metadata from JSON file
 text-to-sql metadata import sample_data/metadata.json
 text-to-sql metadata import sample_data/cloud_metadata.json
@@ -76,6 +107,8 @@ text-to-sql metadata clear -y
 Database info stores table schemas for SQL generation context.
 
 ```bash
+cd backend
+
 # Introspect all tables from PostgreSQL
 text-to-sql database-info introspect
 
@@ -100,6 +133,8 @@ text-to-sql database-info clear -y
 View system-wide SQL generation rules.
 
 ```bash
+cd backend
+
 # Show formatted rules
 text-to-sql system-rules show
 
@@ -127,6 +162,8 @@ Added 2 SQL pairs, updated 9 SQL pairs
 To completely reset and re-import all data:
 
 ```bash
+cd backend
+
 # Clear all collections
 text-to-sql sql-pairs clear -y
 text-to-sql metadata clear -y

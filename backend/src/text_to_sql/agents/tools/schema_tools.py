@@ -9,32 +9,32 @@ from text_to_sql.services.vector_store import get_vector_store_service
 
 
 @tool
-async def list_tables(schema: str = "public") -> list[str]:
+async def list_tables(db_schema: str = "public") -> list[str]:
     """List all tables in the database schema.
 
     Args:
-        schema: The database schema to list tables from (default: public)
+        db_schema: The database schema to list tables from (default: public)
 
     Returns:
         List of table names
     """
     db_service = get_database_service()
-    return await db_service.get_table_names(schema)
+    return await db_service.get_table_names(db_schema)
 
 
 @tool
-async def get_table_schema(table_name: str, schema: str = "public") -> dict[str, Any]:
+async def get_table_schema(table_name: str, db_schema: str = "public") -> dict[str, Any]:
     """Get detailed schema information for a specific table.
 
     Args:
         table_name: Name of the table
-        schema: The database schema (default: public)
+        db_schema: The database schema (default: public)
 
     Returns:
         Table schema with columns, types, constraints, and relationships
     """
     db_service = get_database_service()
-    table_info = await db_service.get_table_info(table_name, schema)
+    table_info = await db_service.get_table_info(table_name, db_schema)
 
     return {
         "table_name": table_info.table_name,

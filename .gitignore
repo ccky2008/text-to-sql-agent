@@ -21,7 +21,6 @@ wheels/
 *.egg
 
 # Virtual environments
-.env
 .venv
 env/
 venv/
@@ -46,6 +45,8 @@ chroma_data/
 
 # Session storage
 sessions.db
+sessions.db-shm
+sessions.db-wal
 *.sqlite
 
 # Logs
@@ -56,6 +57,21 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Local configuration
+# Environment files
+.env
 .env.local
 .env.*.local
+
+# Node.js / Frontend
+node_modules/
+.next/
+out/
+.nuxt/
+dist/
+.cache/
+*.tsbuildinfo
+
+# Frontend build artifacts
+frontend/build/
+frontend/.next/
+frontend/node_modules/

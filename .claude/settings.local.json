@@ -8,7 +8,8 @@
       "Bash(source .venv/bin/activate)",
       "Bash(pytest:*)",
       "Bash(python:*)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(uvicorn:*)"
     ]
   }
 }
