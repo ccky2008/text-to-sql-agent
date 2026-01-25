@@ -30,7 +30,7 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
     state = create_initial_state(request.question, session_id)
 
     # Get graph and config
-    graph = get_agent_graph()
+    graph = await get_agent_graph()
     config = session_manager.get_config(session_id)
 
     try:
@@ -121,7 +121,7 @@ async def query(request: QueryRequest):
         session_manager.create_session(session_id)
 
     state = create_initial_state(request.question, session_id)
-    graph = get_agent_graph()
+    graph = await get_agent_graph()
     config = session_manager.get_config(session_id)
 
     try:

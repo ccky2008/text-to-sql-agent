@@ -1,0 +1,10 @@
+{
+  "name": "text-to-sql-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Frontend not yet implemented'",
+    "build": "echo 'Frontend not yet implemented'",
+    "start": "echo 'Frontend not yet implemented'"
+  }
+}
