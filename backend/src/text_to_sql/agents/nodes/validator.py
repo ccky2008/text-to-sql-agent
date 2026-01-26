@@ -24,20 +24,22 @@ def validator_node(state: AgentState) -> dict:
     # Run validation
     result = validate_sql(sql)
 
-    # If basic validation passed, check table existence
+    # Collect warnings
+    warnings = list(result.warnings)
+
+    # If basic validation passed, check table existence (as warning, not error)
     if result.is_valid:
         tables_valid, missing_tables = validate_tables_exist(sql)
         if not tables_valid:
-            return {
-                "is_valid": False,
-                "validation_errors": [
-                    f"Unknown tables referenced: {', '.join(missing_tables)}"
-                ],
-                "validation_warnings": result.warnings,
-            }
+            # Add as warning instead of error - the executor will catch
+            # actual missing tables when running against the database
+            warnings.append(
+                f"Tables not in metadata catalog: {', '.join(missing_tables)}. "
+                "Query will still be executed."
+            )
 
     return {
         "is_valid": result.is_valid,
         "validation_errors": result.errors,
-        "validation_warnings": result.warnings,
+        "validation_warnings": warnings,
     }
