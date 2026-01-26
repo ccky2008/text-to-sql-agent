@@ -158,23 +158,24 @@ def validate_sql_query(sql: str) -> dict[str, Any]:
     """
     result = validate_sql(sql)
 
-    # Also check table existence if basic validation passed
-    tables_valid = True
-    missing_tables: list[str] = []
+    # Collect warnings
+    warnings = list(result.warnings)
+
+    # Also check table existence if basic validation passed (as warning, not error)
     if result.is_valid:
         tables_valid, missing_tables = validate_tables_exist(sql)
         if not tables_valid:
-            result = ValidationResult(
-                is_valid=False,
-                errors=[f"Unknown tables referenced: {', '.join(missing_tables)}"],
-                warnings=result.warnings,
-                statement_type=result.statement_type,
+            # Add as warning instead of error - the executor will catch
+            # actual missing tables when running against the database
+            warnings.append(
+                f"Tables not in metadata catalog: {', '.join(missing_tables)}. "
+                "Query will still be executed."
             )
 
     return {
         "is_valid": result.is_valid,
         "errors": result.errors,
-        "warnings": result.warnings,
+        "warnings": warnings,
         "statement_type": result.statement_type.value,
     }
 

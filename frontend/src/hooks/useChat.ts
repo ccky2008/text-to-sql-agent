@@ -100,7 +100,7 @@ export function useChat() {
 
               case "execution_complete":
                 if (sqlResult) {
-                  sqlResult.executed = data.executed as boolean;
+                  sqlResult.executed = true;
                   sqlResult.results =
                     (data.results as Record<string, unknown>[]) || null;
                   sqlResult.rowCount = (data.row_count as number) || null;
@@ -109,7 +109,7 @@ export function useChat() {
                 break;
 
               case "token":
-                streamedContent += data.token as string;
+                streamedContent += data.content as string;
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === assistantMessageId
