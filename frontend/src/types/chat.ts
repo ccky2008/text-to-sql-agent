@@ -14,6 +14,15 @@ export interface SQLResult {
   results: Record<string, unknown>[] | null;
   rowCount: number | null;
   columns: string[] | null;
+  // Pagination fields
+  totalCount: number | null;
+  hasMore: boolean;
+  page: number;
+  pageSize: number;
+  // CSV fields
+  csvAvailable: boolean;
+  csvExceedsLimit: boolean;
+  queryToken: string | null;
 }
 
 export interface Message {

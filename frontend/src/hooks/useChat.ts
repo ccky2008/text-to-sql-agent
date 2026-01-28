@@ -77,7 +77,7 @@ export function useChat() {
               case "sql_generated":
                 sqlResult = {
                   sql: data.sql as string,
-                  explanation: (data.explanation as string) || null,
+                  explanation: (data.explanation as string) ?? null,
                   isValid: false,
                   validationErrors: [],
                   validationWarnings: [],
@@ -85,6 +85,15 @@ export function useChat() {
                   results: null,
                   rowCount: null,
                   columns: null,
+                  // Pagination defaults
+                  totalCount: null,
+                  hasMore: false,
+                  page: 1,
+                  pageSize: 100,
+                  // CSV defaults
+                  csvAvailable: false,
+                  csvExceedsLimit: false,
+                  queryToken: null,
                 };
                 break;
 
@@ -92,9 +101,9 @@ export function useChat() {
                 if (sqlResult) {
                   sqlResult.isValid = data.is_valid as boolean;
                   sqlResult.validationErrors =
-                    (data.errors as string[]) || [];
+                    (data.errors as string[]) ?? [];
                   sqlResult.validationWarnings =
-                    (data.warnings as string[]) || [];
+                    (data.warnings as string[]) ?? [];
                 }
                 break;
 
@@ -102,9 +111,16 @@ export function useChat() {
                 if (sqlResult) {
                   sqlResult.executed = true;
                   sqlResult.results =
-                    (data.results as Record<string, unknown>[]) || null;
-                  sqlResult.rowCount = (data.row_count as number) || null;
-                  sqlResult.columns = (data.columns as string[]) || null;
+                    (data.results as Record<string, unknown>[]) ?? null;
+                  sqlResult.rowCount = (data.row_count as number) ?? null;
+                  sqlResult.columns = (data.columns as string[]) ?? null;
+                  sqlResult.totalCount = (data.total_count as number) ?? null;
+                  sqlResult.hasMore = (data.has_more as boolean) ?? false;
+                  sqlResult.page = (data.page as number) ?? 1;
+                  sqlResult.pageSize = (data.page_size as number) ?? 100;
+                  sqlResult.csvAvailable = (data.csv_available as boolean) ?? false;
+                  sqlResult.csvExceedsLimit = (data.csv_exceeds_limit as boolean) ?? false;
+                  sqlResult.queryToken = (data.query_token as string) ?? null;
                 }
                 break;
 

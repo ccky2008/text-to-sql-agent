@@ -45,9 +45,28 @@ class AgentState(TypedDict):
     # Retry tracking
     retry_count: int
 
+    # Pagination state
+    page: int
+    page_size: int
+    total_count: int | None
+    has_more_results: bool
 
-def create_initial_state(question: str, session_id: str) -> AgentState:
+    # CSV metadata
+    csv_available: bool
+    csv_exceeds_limit: bool
+    query_token: str | None
+
+
+def create_initial_state(
+    question: str,
+    session_id: str,
+    page: int = 1,
+    page_size: int = 100,
+) -> AgentState:
     """Create initial state for a new query."""
+    # Cap page_size to prevent abuse from internal callers
+    page_size = min(page_size, 500)
+
     return AgentState(
         messages=[],
         question=question,
@@ -67,4 +86,13 @@ def create_initial_state(question: str, session_id: str) -> AgentState:
         natural_language_response=None,
         session_id=session_id,
         retry_count=0,
+        # Pagination state
+        page=page,
+        page_size=page_size,
+        total_count=None,
+        has_more_results=False,
+        # CSV metadata
+        csv_available=False,
+        csv_exceeds_limit=False,
+        query_token=None,
     )
