@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     sql_max_rows: int = Field(default=1000, description="Maximum rows to return from queries")
     sql_timeout_seconds: int = Field(default=30, description="SQL query timeout in seconds")
 
+    # Pagination Settings
+    pagination_default_limit: int = Field(default=100, description="Default pagination limit")
+
+    # CSV Download Settings
+    csv_max_rows: int = Field(default=2500, description="Maximum rows for CSV download")
+
     # System Rules Configuration
     system_rules_path: str | None = Field(
         default=None, description="Path to system rules JSON file (defaults to sample_data/system_rules.json)"

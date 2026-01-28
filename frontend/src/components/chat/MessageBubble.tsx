@@ -51,6 +51,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               results={message.sqlResult.results}
               columns={message.sqlResult.columns}
               rowCount={message.sqlResult.rowCount || 0}
+              totalCount={message.sqlResult.totalCount}
+              hasMore={message.sqlResult.hasMore}
+              page={message.sqlResult.page}
+              pageSize={message.sqlResult.pageSize}
+              queryToken={message.sqlResult.queryToken}
+              csvExceedsLimit={message.sqlResult.csvExceedsLimit}
             />
           )}
 

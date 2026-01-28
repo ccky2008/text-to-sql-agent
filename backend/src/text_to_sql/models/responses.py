@@ -6,6 +6,17 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class PaginationInfo(BaseModel):
+    """Pagination metadata."""
+
+    page: int = Field(..., description="Current page number (1-indexed)")
+    page_size: int = Field(..., description="Results per page")
+    total_count: int | None = Field(default=None, description="Total number of rows")
+    total_pages: int | None = Field(default=None, description="Total number of pages")
+    has_next: bool = Field(default=False, description="Whether there are more pages")
+    has_prev: bool = Field(default=False, description="Whether there are previous pages")
+
+
 class QueryResponse(BaseModel):
     """Response model for non-streaming query endpoint."""
 
@@ -24,6 +35,10 @@ class QueryResponse(BaseModel):
     )
     session_id: str = Field(..., description="Session ID for conversation continuity")
     error: str | None = Field(default=None, description="Error message if any")
+    pagination: PaginationInfo | None = Field(default=None, description="Pagination metadata")
+    csv_available: bool = Field(default=False, description="Whether CSV download is available")
+    csv_exceeds_limit: bool = Field(default=False, description="Whether total rows exceed CSV limit")
+    query_token: str | None = Field(default=None, description="Token for CSV download (valid for 1 hour)")
 
 
 class StreamEvent(BaseModel):
@@ -96,3 +111,11 @@ class TableInfoListResponse(BaseModel):
 
     tables: list[dict[str, Any]]
     total: int
+
+
+class CSVLimitsResponse(BaseModel):
+    """Response for CSV download limits."""
+
+    max_rows_per_download: int = Field(..., description="Maximum rows per CSV download")
+    batch_download_available: bool = Field(default=True, description="Whether batch download is available")
+    batch_download_instructions: str = Field(..., description="Instructions for batch downloading")

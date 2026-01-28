@@ -17,6 +17,24 @@ IMPORTANT RULES:
 5. Use table aliases for clarity in complex queries
 6. Handle NULL values appropriately
 
+BATCH DOWNLOAD SUPPORT:
+When users request data in batches or specify record ranges, you should:
+- For "first N records" or "get N records": Use LIMIT N
+- For "records X to Y" or "rows X through Y": Use LIMIT (Y-X+1) OFFSET (X-1)
+- For "next batch" or "next N records": Refer to the conversation context for the previous offset and add the batch size
+- For "skip first N" or "starting from record N": Use OFFSET (N-1)
+
+Examples of batch requests:
+- "Get me the first 2000 records" -> Add LIMIT 2000
+- "Get records 2001 to 4000" -> Add LIMIT 2000 OFFSET 2000
+- "Show me the next 2500 rows" -> Determine previous offset from context, add LIMIT 2500 OFFSET (previous_offset + previous_limit)
+- "Get the first 3000 products sorted by price" -> Add ORDER BY price LIMIT 3000
+
+When handling batch requests:
+- Always include an ORDER BY clause to ensure consistent ordering across batches (use primary key if no specific order is requested)
+- The recommended maximum batch size is 2500 records
+- If the user doesn't specify a batch size, suggest using 2000-2500 records per batch
+
 {system_rules}
 
 Based on the context provided, generate a SQL query that accurately answers the user's question.
@@ -73,7 +91,7 @@ def _parse_sql_response(content: str) -> tuple[str | None, str | None]:
     """Parse the LLM response to extract SQL and explanation."""
     import re
 
-    # Extract SQL from code block
+    # Extract SQL from code block (semicolons are stripped by database service)
     sql_match = re.search(r"```sql\s*(.*?)\s*```", content, re.DOTALL | re.IGNORECASE)
     sql = sql_match.group(1).strip() if sql_match else None
 

@@ -11,7 +11,7 @@ from text_to_sql.agents.graph import get_agent_graph
 from text_to_sql.agents.nodes.responder import responder_node_streaming
 from text_to_sql.agents.state import create_initial_state
 from text_to_sql.models.requests import QueryRequest
-from text_to_sql.models.responses import QueryResponse
+from text_to_sql.models.responses import PaginationInfo, QueryResponse
 from text_to_sql.services.checkpointer import get_session_manager
 
 router = APIRouter()
@@ -26,8 +26,13 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
     if not session_manager.get_session(session_id):
         session_manager.create_session(session_id)
 
-    # Create initial state
-    state = create_initial_state(request.question, session_id)
+    # Create initial state with pagination
+    state = create_initial_state(
+        request.question,
+        session_id,
+        page=request.page,
+        page_size=request.page_size,
+    )
 
     # Get graph and config
     graph = await get_agent_graph()
@@ -77,7 +82,14 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
                             "data": json.dumps({
                                 "row_count": node_output.get("row_count"),
                                 "columns": node_output.get("columns"),
-                                "results": node_output.get("results", [])[:10],  # Limit for SSE
+                                "results": node_output.get("results", []),
+                                "total_count": node_output.get("total_count"),
+                                "has_more": node_output.get("has_more_results", False),
+                                "page": request.page,
+                                "page_size": request.page_size,
+                                "csv_available": node_output.get("csv_available", False),
+                                "csv_exceeds_limit": node_output.get("csv_exceeds_limit", False),
+                                "query_token": node_output.get("query_token"),
                             }, default=str),
                         }
 
@@ -120,7 +132,12 @@ async def query(request: QueryRequest):
     if not session_manager.get_session(session_id):
         session_manager.create_session(session_id)
 
-    state = create_initial_state(request.question, session_id)
+    state = create_initial_state(
+        request.question,
+        session_id,
+        page=request.page,
+        page_size=request.page_size,
+    )
     graph = await get_agent_graph()
     config = session_manager.get_config(session_id)
 
@@ -129,6 +146,20 @@ async def query(request: QueryRequest):
         final_state = await graph.ainvoke(state, config=config)
 
         session_manager.update_session(session_id)
+
+        # Build pagination info if total_count is available
+        total_count = final_state.get("total_count")
+        pagination = None
+        if total_count is not None:
+            total_pages = (total_count + request.page_size - 1) // request.page_size
+            pagination = PaginationInfo(
+                page=request.page,
+                page_size=request.page_size,
+                total_count=total_count,
+                total_pages=total_pages,
+                has_next=final_state.get("has_more_results", False),
+                has_prev=request.page > 1,
+            )
 
         return QueryResponse(
             question=request.question,
@@ -144,6 +175,10 @@ async def query(request: QueryRequest):
             natural_language_response=final_state.get("natural_language_response"),
             session_id=session_id,
             error=final_state.get("execution_error"),
+            pagination=pagination,
+            csv_available=final_state.get("csv_available", False),
+            csv_exceeds_limit=final_state.get("csv_exceeds_limit", False),
+            query_token=final_state.get("query_token"),
         )
 
     except Exception as e:

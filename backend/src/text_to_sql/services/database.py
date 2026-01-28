@@ -54,15 +54,12 @@ class DatabaseService:
     ) -> ExecutionResult:
         """Execute a SQL query and return results."""
         max_rows = max_rows or self._settings.sql_max_rows
+        clean_sql = self._strip_trailing_semicolons(sql)
         try:
             async with self.get_connection() as conn:
                 # Use LIMIT wrapper for safety
-                limited_sql = f"SELECT * FROM ({sql}) AS subq LIMIT {max_rows}"
-                try:
-                    rows = await conn.fetch(limited_sql)
-                except asyncpg.PostgresSyntaxError:
-                    # If wrapping fails, try original SQL
-                    rows = await conn.fetch(sql)
+                limited_sql = f"SELECT * FROM ({clean_sql}) AS subq LIMIT {max_rows}"
+                rows = await conn.fetch(limited_sql)
 
                 if rows:
                     columns = list(rows[0].keys())
@@ -91,6 +88,68 @@ class DatabaseService:
             )
         except Exception as e:
             raise SQLExecutionError(f"Query execution failed: {e}", sql=sql) from e
+
+    @staticmethod
+    def _strip_trailing_semicolons(sql: str) -> str:
+        """Strip trailing whitespace and semicolons to avoid syntax errors in subquery wrapping."""
+        return sql.rstrip().rstrip(";")
+
+    async def execute_count_query(self, sql: str, timeout: float = 5.0) -> int | None:
+        """Execute a COUNT query to get total rows.
+
+        Wraps the original SQL in a COUNT(*) subquery.
+        Returns None if count fails (e.g., timeout, syntax error).
+        """
+        clean_sql = self._strip_trailing_semicolons(sql)
+        count_sql = f"SELECT COUNT(*) as cnt FROM ({clean_sql}) AS count_subq"
+        try:
+            async with self.get_connection() as conn:
+                row = await asyncio.wait_for(
+                    conn.fetchrow(count_sql),
+                    timeout=timeout,
+                )
+                return row["cnt"] if row else None
+        except asyncio.TimeoutError:
+            return None
+        except Exception:
+            return None
+
+    async def execute_query_paginated(
+        self, sql: str, offset: int = 0, limit: int = 100
+    ) -> ExecutionResult:
+        """Execute a SQL query with pagination (LIMIT/OFFSET)."""
+        clean_sql = self._strip_trailing_semicolons(sql)
+        paginated_sql = f"SELECT * FROM ({clean_sql}) AS subq LIMIT {limit} OFFSET {offset}"
+        try:
+            async with self.get_connection() as conn:
+                rows = await conn.fetch(paginated_sql)
+                if rows:
+                    columns = list(rows[0].keys())
+                    results = [dict(row) for row in rows]
+                    return ExecutionResult(
+                        success=True,
+                        rows=results,
+                        row_count=len(results),
+                        columns=columns,
+                        error=None,
+                    )
+                return ExecutionResult(
+                    success=True,
+                    rows=[],
+                    row_count=0,
+                    columns=[],
+                    error=None,
+                )
+        except asyncpg.PostgresError as e:
+            return ExecutionResult(
+                success=False,
+                rows=None,
+                row_count=0,
+                columns=None,
+                error=str(e),
+            )
+        except Exception as e:
+            raise SQLExecutionError(f"Paginated query execution failed: {e}", sql=sql) from e
 
     async def get_table_names(self, schema: str = "public") -> list[str]:
         """Get all table names in a schema."""

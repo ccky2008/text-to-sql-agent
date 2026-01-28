@@ -12,6 +12,8 @@ class QueryRequest(BaseModel):
     )
     execute: bool = Field(default=True, description="Whether to execute the generated SQL")
     stream: bool = Field(default=True, description="Whether to stream the response")
+    page: int = Field(default=1, ge=1, description="Page number (1-indexed)")
+    page_size: int = Field(default=100, ge=1, le=500, description="Number of results per page")
 
 
 class SQLPairAddRequest(BaseModel):
@@ -38,3 +40,12 @@ class TableInfoAddRequest(BaseModel):
     table_name: str = Field(..., description="Table name")
     columns: list[dict] = Field(..., description="Column definitions")
     description: str | None = Field(default=None, description="Table description")
+
+
+class CSVDownloadRequest(BaseModel):
+    """Request model for CSV download endpoint."""
+
+    query_token: str = Field(..., description="Token from a validated query (returned in query response)")
+    offset: int = Field(default=0, ge=0, description="Starting row offset")
+    limit: int | None = Field(default=None, le=10000, description="Maximum rows to fetch (capped by csv_max_rows)")
+    filename: str = Field(default="query_results.csv", description="Suggested filename for download")
