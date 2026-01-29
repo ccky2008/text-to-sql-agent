@@ -1,9 +1,56 @@
 """SQL execution node."""
 
+import re
+
 from text_to_sql.agents.state import AgentState
 from text_to_sql.config import get_settings
 from text_to_sql.services.database import get_database_service
 from text_to_sql.services.query_cache import get_query_cache
+
+
+def _make_user_friendly_error(error: str) -> tuple[str, str | None]:
+    """Convert database errors to user-friendly messages.
+
+    Returns:
+        Tuple of (user_friendly_message, special_response_type)
+    """
+    error_lower = error.lower()
+
+    # Check for "relation does not exist" (table not found) errors
+    table_not_found = re.search(
+        r'relation ["\']?(\w+)["\']? does not exist', error_lower
+    )
+    if table_not_found or ("relation" in error_lower and "does not exist" in error_lower):
+        table_name = table_not_found.group(1) if table_not_found else "requested"
+        return (
+            f"The requested resource type '{table_name}' does not exist in our database. "
+            "We cannot provide information about resources that are not tracked. "
+            "Please try asking about a different resource type.",
+            "RESOURCE_NOT_FOUND",
+        )
+
+    # Check for "column does not exist" errors
+    column_not_found = re.search(
+        r'column ["\']?(\w+)["\']? does not exist', error_lower
+    )
+    if column_not_found or ("column" in error_lower and "does not exist" in error_lower):
+        column_name = column_not_found.group(1) if column_not_found else "requested"
+        return (
+            f"The requested field '{column_name}' does not exist for this resource type. "
+            "Please check the available fields or try a different query.",
+            "RESOURCE_NOT_FOUND",
+        )
+
+    # Check for permission denied errors
+    if "permission denied" in error_lower:
+        return (
+            "Access to the requested resource is not permitted. "
+            "Please try asking about a different resource type.",
+            None,
+        )
+
+    # Default: return original error
+    return error, None
 
 
 async def executor_node(state: AgentState) -> dict:
@@ -15,7 +62,7 @@ async def executor_node(state: AgentState) -> dict:
     sql = state.get("generated_sql")
 
     # Base error response (immutable pattern - create fresh dict each return)
-    def make_error(msg: str) -> dict:
+    def make_error(msg: str, special_type: str | None = None) -> dict:
         return {
             "executed": False,
             "results": None,
@@ -27,6 +74,7 @@ async def executor_node(state: AgentState) -> dict:
             "csv_available": False,
             "csv_exceeds_limit": False,
             "query_token": None,
+            "special_response_type": special_type,
         }
 
     if not sql:
@@ -80,7 +128,13 @@ async def executor_node(state: AgentState) -> dict:
                 "query_token": query_token,
             }
         else:
-            return make_error(result.error or "Query execution failed")
+            # Convert database error to user-friendly message
+            user_msg, special_type = _make_user_friendly_error(
+                result.error or "Query execution failed"
+            )
+            return make_error(user_msg, special_type)
 
     except Exception as e:
-        return make_error(str(e))
+        # Convert exception to user-friendly message
+        user_msg, special_type = _make_user_friendly_error(str(e))
+        return make_error(user_msg, special_type)

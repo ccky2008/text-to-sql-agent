@@ -12,9 +12,32 @@ from text_to_sql.services.system_rules import (
     get_system_rules_service,
 )
 
-BASE_SYSTEM_PROMPT = """You are an expert SQL developer specializing in PostgreSQL. Your task is to convert natural language questions into accurate SQL queries.
+BASE_SYSTEM_PROMPT = """You are an expert SQL developer specializing in PostgreSQL. Your task is to convert natural language questions into accurate SQL queries for querying cloud resource metadata.
 
-IMPORTANT RULES:
+## PURPOSE AND SCOPE
+This system is designed to query metadata about Azure and AWS cloud resources. Valid questions include:
+- Resource inventory (e.g., "List all VMs", "Show S3 buckets", "Count EC2 instances")
+- Resource configuration and properties
+- Tags and metadata for cloud resources
+- Resource relationships and dependencies
+- Cost and billing information for cloud resources
+- Security and compliance status of resources
+
+## OUT-OF-SCOPE REQUESTS
+If the user asks about topics unrelated to Azure/AWS cloud resources, you MUST respond with ONLY:
+[OUT_OF_SCOPE] I'm designed to help you query Azure and AWS cloud resource metadata only. I can help with questions about your cloud resources, their configurations, tags, and relationships. Please ask a question about your cloud resources.
+
+Examples of out-of-scope questions:
+- General knowledge questions (weather, news, math, etc.)
+- Questions about non-cloud databases or systems
+- Personal assistant requests
+- Programming help unrelated to cloud queries
+
+## DATA MODIFICATION REQUESTS
+This system is READ-ONLY. If the user attempts to modify, insert, update, or delete data, respond with ONLY:
+[READ_ONLY] This system only supports querying (reading) cloud resource data. Data modifications are not permitted. How can I help you find information about your cloud resources?
+
+## IMPORTANT RULES FOR VALID QUERIES
 1. Only generate SELECT or WITH (CTE) statements - never INSERT, UPDATE, DELETE, DROP, etc.
 2. Use proper PostgreSQL syntax and functions
 3. Always consider performance - use appropriate indexes and avoid SELECT *
@@ -116,8 +139,21 @@ def _format_context(state: AgentState) -> str:
     return "\n".join(parts) if parts else "No additional context available."
 
 
-def _parse_sql_response(content: str) -> tuple[str | None, str | None]:
-    """Parse the LLM response to extract SQL and explanation."""
+def _parse_sql_response(content: str) -> tuple[str | None, str | None, str | None]:
+    """Parse the LLM response to extract SQL, explanation, and special markers.
+
+    Returns:
+        Tuple of (sql, explanation, special_response_type)
+        special_response_type is one of: "OUT_OF_SCOPE", "READ_ONLY", or None
+    """
+    # Check for special response markers first
+    if content.strip().startswith("[OUT_OF_SCOPE]"):
+        message = content.replace("[OUT_OF_SCOPE]", "").strip()
+        return None, message, "OUT_OF_SCOPE"
+
+    if content.strip().startswith("[READ_ONLY]"):
+        message = content.replace("[READ_ONLY]", "").strip()
+        return None, message, "READ_ONLY"
 
     # Extract SQL from code block (semicolons are stripped by database service)
     sql_match = re.search(r"```sql\s*(.*?)\s*```", content, re.DOTALL | re.IGNORECASE)
@@ -144,7 +180,7 @@ def _parse_sql_response(content: str) -> tuple[str | None, str | None]:
     # Clean up explanation
     explanation = re.sub(r"```.*?```", "", explanation, flags=re.DOTALL).strip()
 
-    return sql, explanation if explanation else None
+    return sql, explanation if explanation else None, None
 
 
 async def sql_generator_node(state: AgentState) -> dict:
@@ -152,6 +188,8 @@ async def sql_generator_node(state: AgentState) -> dict:
 
     Uses retrieved context (SQL pairs, schema, metadata) to generate
     an accurate SQL query.
+
+    May return special response types for out-of-scope or read-only requests.
     """
     settings = get_settings()
 
@@ -179,10 +217,19 @@ async def sql_generator_node(state: AgentState) -> dict:
     response = await llm.ainvoke(messages)
     content = response.content if isinstance(response.content, str) else str(response.content)
 
-    sql, explanation = _parse_sql_response(content)
+    sql, explanation, special_response_type = _parse_sql_response(content)
 
-    return {
+    result = {
         "generated_sql": sql,
         "sql_explanation": explanation,
         "messages": [HumanMessage(content=state["question"])],
+        "special_response_type": special_response_type,
     }
+
+    # If this is a special response (out-of-scope or read-only), skip SQL generation
+    if special_response_type:
+        result["natural_language_response"] = explanation
+        result["is_valid"] = False  # Mark as invalid to skip execution
+        result["validation_errors"] = []  # No validation errors, just skip
+
+    return result
