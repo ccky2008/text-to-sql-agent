@@ -2,12 +2,14 @@
 
 import hashlib
 from datetime import UTC, datetime
-from typing import Any
-from uuid import uuid4
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, model_validator
 
 from text_to_sql.core.types import MetadataCategory
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class SQLPair(BaseModel):
@@ -124,28 +126,32 @@ class TableInfo(BaseModel):
         """Get fully qualified table name."""
         return f"{self.schema_name}.{self.table_name}"
 
-    def to_embedding_text(self) -> str:
-        """Generate text for embedding."""
+    def _format_column(self, col: ColumnInfo) -> str:
+        """Format a single column for embedding text."""
+        col_str = f"  - {col.name} ({col.data_type})"
+        if col.is_primary_key:
+            col_str += " PRIMARY KEY"
+        if col.is_foreign_key and col.foreign_key_table:
+            col_str += f" REFERENCES {col.foreign_key_table}"
+        if col.description:
+            col_str += f" -- {col.description}"
+        return col_str
+
+    def _build_embedding_text(self, columns: "Sequence[ColumnInfo]") -> str:
+        """Build embedding text from a list of columns."""
         parts = [f"Table: {self.full_name}"]
         if self.description:
             parts.append(f"Description: {self.description}")
 
-        columns_desc = []
-        for col in self.columns:
-            col_str = f"  - {col.name} ({col.data_type})"
-            if col.is_primary_key:
-                col_str += " PRIMARY KEY"
-            if col.is_foreign_key and col.foreign_key_table:
-                col_str += f" REFERENCES {col.foreign_key_table}"
-            if col.description:
-                col_str += f" -- {col.description}"
-            columns_desc.append(col_str)
-
-        if columns_desc:
+        if columns:
             parts.append("Columns:")
-            parts.extend(columns_desc)
+            parts.extend(self._format_column(col) for col in columns)
 
         return "\n".join(parts)
+
+    def to_embedding_text(self) -> str:
+        """Generate text for embedding."""
+        return self._build_embedding_text(self.columns)
 
     def to_metadata(self) -> dict[str, Any]:
         """Convert to ChromaDB metadata format."""
@@ -160,6 +166,38 @@ class TableInfo(BaseModel):
             "description": self.description or "",
             "created_at": self.created_at.isoformat(),
         }
+
+    def get_visible_columns(
+        self, excluded: "frozenset[str] | None" = None
+    ) -> "Sequence[ColumnInfo]":
+        """Return columns excluding system columns.
+
+        Args:
+            excluded: Set of column names to exclude. If None, uses default
+                      EXCLUDED_SELECT_COLUMNS from system_rules.
+
+        Returns:
+            List of columns not in the excluded set.
+        """
+        if excluded is None:
+            from text_to_sql.services.system_rules import EXCLUDED_SELECT_COLUMNS
+
+            excluded = EXCLUDED_SELECT_COLUMNS
+        return [col for col in self.columns if col.name not in excluded]
+
+    def to_embedding_text_filtered(
+        self, excluded: "frozenset[str] | None" = None
+    ) -> str:
+        """Generate text for embedding without system columns.
+
+        Args:
+            excluded: Set of column names to exclude. If None, uses default
+                      EXCLUDED_SELECT_COLUMNS from system_rules.
+
+        Returns:
+            Embedding text with filtered columns.
+        """
+        return self._build_embedding_text(self.get_visible_columns(excluded))
 
     def to_ddl(self) -> str:
         """Generate DDL-like representation."""

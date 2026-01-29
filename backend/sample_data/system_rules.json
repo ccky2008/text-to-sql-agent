@@ -4,6 +4,11 @@
     "rule": "Always include 'deletedAt IS NULL' filter to exclude deleted records",
     "applies_to": "All tables with deletedAt column"
   },
+  "excluded_select_columns": {
+    "description": "Internal system columns that should not appear in SELECT output",
+    "columns": ["sysId", "deletedAt", "createdAt", "updatedAt"],
+    "rule": "Do NOT include these columns in SELECT statements unless the user explicitly requests them by name. Note: Not all tables have all these columns - only filter those that exist. These columns may still be used in WHERE, ORDER BY, or JOIN clauses."
+  },
   "standard_columns": {
     "sysId": {
       "description": "Internal system identifier (UUID)",
