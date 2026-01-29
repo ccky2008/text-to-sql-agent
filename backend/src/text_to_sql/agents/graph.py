@@ -16,6 +16,20 @@ from text_to_sql.services.checkpointer import get_session_manager
 MAX_RETRIES = 2
 
 
+def should_validate_or_respond(
+    state: AgentState,
+) -> Literal["validator", "responder"]:
+    """Determine if SQL should be validated or skip to response.
+
+    Routes directly to responder if this is a special response (out-of-scope, read-only).
+    Otherwise, routes to validator for normal SQL processing.
+    """
+    special_type = state.get("special_response_type")
+    if special_type in ("OUT_OF_SCOPE", "READ_ONLY"):
+        return "responder"
+    return "validator"
+
+
 def should_execute(state: AgentState) -> Literal["executor", "responder"]:
     """Determine if SQL should be executed.
 
@@ -30,7 +44,12 @@ def should_retry(state: AgentState) -> Literal["sql_generator", "responder"]:
     """Determine if SQL generation should be retried.
 
     Retries if validation failed and retry count is below threshold.
+    Does not retry for special response types (out-of-scope, read-only, resource not found).
     """
+    special_type = state.get("special_response_type")
+    if special_type in ("OUT_OF_SCOPE", "READ_ONLY", "RESOURCE_NOT_FOUND"):
+        return "responder"
+
     if not state.get("is_valid", False) and state.get("retry_count", 0) < MAX_RETRIES:
         return "sql_generator"
     return "responder"
@@ -47,11 +66,13 @@ def _build_graph() -> StateGraph:
     Graph flow:
     1. Retrieval - Fetch context from vector stores
     2. SQL Generator - Generate SQL from question + context
+       - If out-of-scope or read-only request -> Responder (skip validation/execution)
     3. Validator - Validate SQL syntax and safety
+       - If resource not found -> Responder (skip execution)
     4. Executor - Execute SQL (if valid)
     5. Responder - Generate natural language response
 
-    If validation fails, retry SQL generation up to MAX_RETRIES times.
+    If validation fails (and not a special response), retry SQL generation up to MAX_RETRIES times.
     """
     # Create the graph
     graph = StateGraph(AgentState)
@@ -69,7 +90,17 @@ def _build_graph() -> StateGraph:
 
     # Add edges
     graph.add_edge("retrieval", "sql_generator")
-    graph.add_edge("sql_generator", "validator")
+
+    # Conditional routing after SQL generation
+    # Skip validation for special responses (out-of-scope, read-only)
+    graph.add_conditional_edges(
+        "sql_generator",
+        should_validate_or_respond,
+        {
+            "validator": "validator",
+            "responder": "responder",
+        },
+    )
 
     # Conditional routing after validation
     graph.add_conditional_edges(

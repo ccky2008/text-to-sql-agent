@@ -46,52 +46,52 @@ class TestValidateSQL:
         assert result.statement_type in (SQLCategory.WITH, SQLCategory.SELECT)
 
     def test_block_drop(self):
-        """Test that DROP statements are blocked."""
+        """Test that DROP statements are blocked with user-friendly message."""
         sql = "DROP TABLE users"
         result = validate_sql(sql)
 
         assert not result.is_valid
-        assert any("DROP" in err for err in result.errors)
+        assert any("read-only" in err.lower() and "dropping" in err.lower() for err in result.errors)
 
     def test_block_delete(self):
-        """Test that DELETE statements are blocked."""
+        """Test that DELETE statements are blocked with user-friendly message."""
         sql = "DELETE FROM users WHERE id = 1"
         result = validate_sql(sql)
 
         assert not result.is_valid
-        assert any("DELETE" in err for err in result.errors)
+        assert any("read-only" in err.lower() and "deleting" in err.lower() for err in result.errors)
 
     def test_block_insert(self):
-        """Test that INSERT statements are blocked."""
+        """Test that INSERT statements are blocked with user-friendly message."""
         sql = "INSERT INTO users (name) VALUES ('test')"
         result = validate_sql(sql)
 
         assert not result.is_valid
-        assert any("INSERT" in err for err in result.errors)
+        assert any("read-only" in err.lower() and "adding" in err.lower() for err in result.errors)
 
     def test_block_update(self):
-        """Test that UPDATE statements are blocked."""
+        """Test that UPDATE statements are blocked with user-friendly message."""
         sql = "UPDATE users SET name = 'test' WHERE id = 1"
         result = validate_sql(sql)
 
         assert not result.is_valid
-        assert any("UPDATE" in err for err in result.errors)
+        assert any("read-only" in err.lower() and "modifying" in err.lower() for err in result.errors)
 
     def test_block_truncate(self):
-        """Test that TRUNCATE statements are blocked."""
+        """Test that TRUNCATE statements are blocked with user-friendly message."""
         sql = "TRUNCATE TABLE users"
         result = validate_sql(sql)
 
         assert not result.is_valid
-        assert any("TRUNCATE" in err for err in result.errors)
+        assert any("read-only" in err.lower() and "truncating" in err.lower() for err in result.errors)
 
     def test_block_alter(self):
-        """Test that ALTER statements are blocked."""
+        """Test that ALTER statements are blocked with user-friendly message."""
         sql = "ALTER TABLE users ADD COLUMN email VARCHAR(255)"
         result = validate_sql(sql)
 
         assert not result.is_valid
-        assert any("ALTER" in err for err in result.errors)
+        assert any("read-only" in err.lower() and "altering" in err.lower() for err in result.errors)
 
     def test_syntax_error(self):
         """Test that syntax errors are caught."""

@@ -10,20 +10,20 @@ from text_to_sql.core.types import SQLCategory, ValidationResult
 from text_to_sql.services.database import get_database_service
 from text_to_sql.services.vector_store import get_vector_store_service
 
-# Dangerous SQL patterns to block
-DANGEROUS_PATTERNS = [
-    r"\bDROP\b",
-    r"\bDELETE\b",
-    r"\bTRUNCATE\b",
-    r"\bALTER\b",
-    r"\bCREATE\b",
-    r"\bINSERT\b",
-    r"\bUPDATE\b",
-    r"\bGRANT\b",
-    r"\bREVOKE\b",
-    r"\bEXEC\b",
-    r"\bEXECUTE\b",
-]
+# User-friendly error messages for prohibited SQL operations
+PROHIBITED_OPERATIONS = {
+    "DROP": "This system is read-only. Dropping tables or database objects is not supported.",
+    "DELETE": "This system is read-only. Deleting data is not permitted.",
+    "TRUNCATE": "This system is read-only. Truncating tables is not permitted.",
+    "ALTER": "This system is read-only. Altering database schema is not permitted.",
+    "CREATE": "This system is read-only. Creating new database objects is not permitted.",
+    "INSERT": "This system is read-only. Adding new data is not permitted.",
+    "UPDATE": "This system is read-only. Modifying existing data is not permitted.",
+    "GRANT": "This system is read-only. Changing permissions is not permitted.",
+    "REVOKE": "This system is read-only. Changing permissions is not permitted.",
+    "EXEC": "This system is read-only. Executing stored procedures is not permitted.",
+    "EXECUTE": "This system is read-only. Executing stored procedures is not permitted.",
+}
 
 
 def validate_sql(sql: str) -> ValidationResult:
@@ -44,11 +44,17 @@ def validate_sql(sql: str) -> ValidationResult:
     cleaned_sql = re.sub(r"/\*.*?\*/", "", cleaned_sql, flags=re.DOTALL)
     cleaned_sql = " ".join(cleaned_sql.split())
 
-    # Check for dangerous patterns
-    for pattern in DANGEROUS_PATTERNS:
+    # Check for dangerous patterns and provide user-friendly messages
+    for keyword, message in PROHIBITED_OPERATIONS.items():
+        pattern = rf"\b{keyword}\b"
         if re.search(pattern, cleaned_sql, re.IGNORECASE):
-            keyword = pattern.replace(r"\b", "").strip()
-            errors.append(f"Dangerous SQL keyword detected: {keyword}")
+            errors.append(message)
+            # Add helpful suggestion only once
+            if not any("You can only query" in e for e in errors):
+                errors.append(
+                    "You can only query (SELECT) cloud resource data. "
+                    "How can I help you find information about your cloud resources?"
+                )
 
     if errors:
         return ValidationResult(
@@ -109,14 +115,14 @@ def validate_sql(sql: str) -> ValidationResult:
     )
 
 
-def validate_tables_exist(sql: str) -> tuple[bool, list[str]]:
+def validate_tables_exist(sql: str) -> tuple[bool, list[str], str | None]:
     """Check if tables referenced in SQL exist in the database info.
 
     Args:
         sql: The SQL query to check
 
     Returns:
-        Tuple of (all_exist, missing_tables)
+        Tuple of (all_exist, missing_tables, user_friendly_error)
     """
     try:
         parsed = sqlglot.parse(sql, dialect="postgres")
@@ -132,7 +138,7 @@ def validate_tables_exist(sql: str) -> tuple[bool, list[str]]:
                     tables_in_query.add(table_name.lower())
 
         if not tables_in_query:
-            return True, []
+            return True, [], None
 
         # Check against database info
         vector_store = get_vector_store_service()
@@ -142,11 +148,29 @@ def validate_tables_exist(sql: str) -> tuple[bool, list[str]]:
         }
 
         missing = [t for t in tables_in_query if t not in known_tables]
-        return len(missing) == 0, missing
+
+        if missing:
+            # Generate user-friendly error message
+            if len(missing) == 1:
+                error_msg = (
+                    f"The requested resource type '{missing[0]}' does not exist in our database. "
+                    "We cannot provide information about resources that are not tracked. "
+                    "Please try asking about a different resource type."
+                )
+            else:
+                tables_list = ", ".join(f"'{t}'" for t in missing)
+                error_msg = (
+                    f"The requested resource types ({tables_list}) do not exist in our database. "
+                    "We cannot provide information about resources that are not tracked. "
+                    "Please try asking about different resource types."
+                )
+            return False, missing, error_msg
+
+        return True, [], None
 
     except Exception:
         # If parsing fails, skip table validation
-        return True, []
+        return True, [], None
 
 
 @tool
@@ -161,23 +185,19 @@ def validate_sql_query(sql: str) -> dict[str, Any]:
     """
     result = validate_sql(sql)
 
-    # Collect warnings
+    # Collect errors and warnings
+    errors = list(result.errors)
     warnings = list(result.warnings)
 
-    # Also check table existence if basic validation passed (as warning, not error)
+    # Check table existence if basic validation passed - now returns error, not warning
     if result.is_valid:
-        tables_valid, missing_tables = validate_tables_exist(sql)
-        if not tables_valid:
-            # Add as warning instead of error - the executor will catch
-            # actual missing tables when running against the database
-            warnings.append(
-                f"Tables not in metadata catalog: {', '.join(missing_tables)}. "
-                "Query will still be executed."
-            )
+        tables_valid, missing_tables, table_error = validate_tables_exist(sql)
+        if not tables_valid and table_error:
+            errors.append(table_error)
 
     return {
-        "is_valid": result.is_valid,
-        "errors": result.errors,
+        "is_valid": result.is_valid and (len(errors) == len(result.errors)),
+        "errors": errors,
         "warnings": warnings,
         "statement_type": result.statement_type.value,
     }

@@ -2,8 +2,8 @@
 
 from typing import Annotated, Any, TypedDict
 
-from langgraph.graph import add_messages
 from langchain_core.messages import BaseMessage
+from langgraph.graph import add_messages
 
 
 class AgentState(TypedDict):
@@ -23,6 +23,9 @@ class AgentState(TypedDict):
     # Generated SQL
     generated_sql: str | None
     sql_explanation: str | None
+
+    # Special response type (OUT_OF_SCOPE, READ_ONLY, RESOURCE_NOT_FOUND, or None)
+    special_response_type: str | None
 
     # Validation results
     is_valid: bool
@@ -75,6 +78,7 @@ def create_initial_state(
         database_info=[],
         generated_sql=None,
         sql_explanation=None,
+        special_response_type=None,
         is_valid=False,
         validation_errors=[],
         validation_warnings=[],
