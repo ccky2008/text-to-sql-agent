@@ -1,7 +1,5 @@
 """Tests for data models."""
 
-import pytest
-
 from text_to_sql.core.types import MetadataCategory
 from text_to_sql.models.data_sources import ColumnInfo, MetadataEntry, SQLPair, TableInfo
 
@@ -143,3 +141,100 @@ class TestTableInfo:
         assert "Customer orders" in text
         assert "user_id" in text
         assert "REFERENCES users" in text
+
+    def test_get_visible_columns_filters_system_columns(self):
+        """Test that get_visible_columns filters out system columns."""
+        columns = [
+            ColumnInfo(name="id", data_type="integer", is_primary_key=True),
+            ColumnInfo(name="name", data_type="varchar(255)"),
+            ColumnInfo(name="sysId", data_type="uuid"),
+            ColumnInfo(name="createdAt", data_type="timestamp"),
+            ColumnInfo(name="updatedAt", data_type="timestamp"),
+            ColumnInfo(name="deletedAt", data_type="timestamp"),
+        ]
+
+        table = TableInfo(table_name="users", columns=columns)
+        visible = table.get_visible_columns()
+
+        assert len(visible) == 2
+        visible_names = [c.name for c in visible]
+        assert "id" in visible_names
+        assert "name" in visible_names
+        assert "sysId" not in visible_names
+        assert "createdAt" not in visible_names
+        assert "updatedAt" not in visible_names
+        assert "deletedAt" not in visible_names
+
+    def test_get_visible_columns_with_custom_exclusions(self):
+        """Test get_visible_columns with custom exclusion set."""
+        columns = [
+            ColumnInfo(name="id", data_type="integer"),
+            ColumnInfo(name="secret", data_type="varchar"),
+            ColumnInfo(name="name", data_type="varchar"),
+        ]
+
+        table = TableInfo(table_name="users", columns=columns)
+        visible = table.get_visible_columns(excluded=frozenset({"secret"}))
+
+        assert len(visible) == 2
+        visible_names = [c.name for c in visible]
+        assert "id" in visible_names
+        assert "name" in visible_names
+        assert "secret" not in visible_names
+
+    def test_get_visible_columns_no_system_columns(self):
+        """Test get_visible_columns when table has no system columns."""
+        columns = [
+            ColumnInfo(name="id", data_type="integer"),
+            ColumnInfo(name="name", data_type="varchar"),
+        ]
+
+        table = TableInfo(table_name="simple_table", columns=columns)
+        visible = table.get_visible_columns()
+
+        assert len(visible) == 2
+
+    def test_to_embedding_text_filtered(self):
+        """Test to_embedding_text_filtered excludes system columns."""
+        columns = [
+            ColumnInfo(name="id", data_type="integer", is_primary_key=True),
+            ColumnInfo(name="email", data_type="varchar"),
+            ColumnInfo(name="sysId", data_type="uuid"),
+            ColumnInfo(name="createdAt", data_type="timestamp"),
+        ]
+
+        table = TableInfo(
+            table_name="users",
+            columns=columns,
+            description="User accounts",
+        )
+
+        text = table.to_embedding_text_filtered()
+
+        assert "users" in text
+        assert "User accounts" in text
+        assert "id" in text
+        assert "email" in text
+        assert "sysId" not in text
+        assert "createdAt" not in text
+
+    def test_to_embedding_text_filtered_preserves_metadata(self):
+        """Test to_embedding_text_filtered preserves FK and PK info."""
+        columns = [
+            ColumnInfo(
+                name="user_id",
+                data_type="integer",
+                is_foreign_key=True,
+                foreign_key_table="users",
+                description="The user who owns this",
+            ),
+            ColumnInfo(name="sysId", data_type="uuid"),
+        ]
+
+        table = TableInfo(table_name="orders", columns=columns)
+        text = table.to_embedding_text_filtered()
+
+        assert "user_id" in text
+        assert "REFERENCES users" in text
+        assert "The user who owns this" in text
+        assert "sysId" not in text

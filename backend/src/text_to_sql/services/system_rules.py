@@ -5,6 +5,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+EXCLUDED_SELECT_COLUMNS: frozenset[str] = frozenset({
+    "sysId",
+    "deletedAt",
+    "createdAt",
+    "updatedAt",
+})
+
 
 class SystemRulesService:
     """Service for loading and formatting system rules."""
@@ -42,6 +49,15 @@ class SystemRulesService:
                 f"SOFT DELETE: {soft_delete['description']}. {soft_delete['rule']}"
             )
 
+        # Excluded SELECT columns rule
+        if excluded := self._rules.get("excluded_select_columns"):
+            cols = ", ".join(excluded.get("columns", []))
+            sections.append(
+                f"EXCLUDED SELECT COLUMNS: {excluded['description']}.\n"
+                f"Columns: {cols}\n"
+                f"Rule: {excluded['rule']}"
+            )
+
         # Standard columns
         if std_cols := self._rules.get("standard_columns"):
             col_lines = ["STANDARD COLUMNS:"]
@@ -73,9 +89,6 @@ class SystemRulesService:
             sections.append("\n".join(prefix_lines))
 
         return "\n\n".join(sections)
-
-
-_system_rules_service: SystemRulesService | None = None
 
 
 @lru_cache

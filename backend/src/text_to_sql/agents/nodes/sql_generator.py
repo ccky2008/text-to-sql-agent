@@ -1,11 +1,16 @@
 """SQL generation node using Azure OpenAI."""
 
+import re
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
 
 from text_to_sql.agents.state import AgentState
 from text_to_sql.config import get_settings
-from text_to_sql.services.system_rules import get_system_rules_service
+from text_to_sql.services.system_rules import (
+    EXCLUDED_SELECT_COLUMNS,
+    get_system_rules_service,
+)
 
 BASE_SYSTEM_PROMPT = """You are an expert SQL developer specializing in PostgreSQL. Your task is to convert natural language questions into accurate SQL queries.
 
@@ -53,6 +58,29 @@ def _get_system_prompt() -> str:
     return BASE_SYSTEM_PROMPT.format(system_rules=system_rules)
 
 
+def _filter_system_columns_from_doc(
+    doc: str, excluded: frozenset[str] = EXCLUDED_SELECT_COLUMNS
+) -> str:
+    """Filter system columns from a schema document string.
+
+    Removes lines containing system column definitions from the schema text.
+
+    Args:
+        doc: The schema document text (typically from to_embedding_text()).
+        excluded: Set of column names to filter out.
+
+    Returns:
+        Filtered document with system columns removed.
+    """
+    # Build a single pattern matching any excluded column name
+    escaped_names = "|".join(re.escape(name) for name in excluded)
+    pattern = re.compile(rf"^\s+-\s+({escaped_names})\s+\(")
+
+    return "\n".join(
+        line for line in doc.split("\n") if not pattern.match(line)
+    )
+
+
 def _format_context(state: AgentState) -> str:
     """Format retrieved context for the prompt."""
     parts = []
@@ -68,13 +96,14 @@ def _format_context(state: AgentState) -> str:
             if meta.get("explanation"):
                 parts.append(f"Explanation: {meta.get('explanation')}")
 
-    # Format database schema
+    # Format database schema (filter system columns)
     if state["database_info"]:
         parts.append("\n## Relevant Database Schema")
         for table in state["database_info"]:
             doc = table.get("document", "")
             if doc:
-                parts.append(f"\n{doc}")
+                filtered_doc = _filter_system_columns_from_doc(doc)
+                parts.append(f"\n{filtered_doc}")
 
     # Format domain metadata
     if state["metadata"]:
@@ -89,7 +118,6 @@ def _format_context(state: AgentState) -> str:
 
 def _parse_sql_response(content: str) -> tuple[str | None, str | None]:
     """Parse the LLM response to extract SQL and explanation."""
-    import re
 
     # Extract SQL from code block (semicolons are stripped by database service)
     sql_match = re.search(r"```sql\s*(.*?)\s*```", content, re.DOTALL | re.IGNORECASE)
