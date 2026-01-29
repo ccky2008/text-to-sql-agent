@@ -74,6 +74,9 @@ def validate_sql(sql: str) -> ValidationResult:
                     statement_type = SQLCategory.SELECT
                 elif stmt_key == "WITH":
                     statement_type = SQLCategory.WITH
+                elif stmt_key == "SEMICOLON":
+                    # Skip trailing semicolon statements (created when SQL ends with `;` followed by comment)
+                    continue
                 else:
                     errors.append(f"Only SELECT and WITH (CTE) statements are allowed, got: {stmt_key}")
 
