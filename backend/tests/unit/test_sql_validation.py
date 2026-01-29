@@ -167,3 +167,36 @@ class TestValidateSQL:
         # CTEs are parsed as SELECT since they always end with a SELECT
         assert result.statement_type in (SQLCategory.WITH, SQLCategory.SELECT)
         assert len(result.warnings) == 0
+
+    def test_valid_query_with_trailing_semicolon(self):
+        """Test that a query with trailing semicolon is valid."""
+        sql = "SELECT id, name FROM users LIMIT 10;"
+        result = validate_sql(sql)
+
+        assert result.is_valid
+        assert result.statement_type == SQLCategory.SELECT
+        assert len(result.errors) == 0
+
+    def test_valid_query_with_semicolon_and_comment(self):
+        """Test that a query with semicolon followed by comment is valid.
+
+        This is a regression test for the issue where sqlglot parses
+        'SELECT ... LIMIT 100; -- comment' as two statements, with the
+        second being a Semicolon statement containing the comment.
+        """
+        sql = """SELECT
+            "objectId",
+            "apiEndpoint",
+            "name"
+        FROM
+            "public"."aws_eks"
+        WHERE
+            "deletedAt" IS NULL
+        ORDER BY
+            "resourceCreationTime" DESC
+        LIMIT 100;  -- Limiting to 100 records for performance"""
+        result = validate_sql(sql)
+
+        assert result.is_valid
+        assert result.statement_type == SQLCategory.SELECT
+        assert len(result.errors) == 0
