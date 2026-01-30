@@ -23,6 +23,25 @@ export interface SQLResult {
   csvAvailable: boolean;
   csvExceedsLimit: boolean;
   queryToken: string | null;
+  // Tool execution tracking
+  executedViaTool?: boolean;
+}
+
+/**
+ * Result from LLM-driven tool execution
+ */
+export interface ToolExecutionResult {
+  toolName: string;
+  success: boolean;
+  rows: Record<string, unknown>[] | null;
+  columns: string[] | null;
+  rowCount: number;
+  totalCount: number | null;
+  hasMore: boolean;
+  page: number;
+  pageSize: number;
+  queryToken: string | null;
+  error: string | null;
 }
 
 export interface Message {

@@ -6,8 +6,10 @@ from typing import Any
 import sqlglot
 from langchain_core.tools import tool
 
+from text_to_sql.config import get_settings
 from text_to_sql.core.types import SQLCategory, ValidationResult
 from text_to_sql.services.database import get_database_service
+from text_to_sql.services.query_cache import get_query_cache
 from text_to_sql.services.vector_store import get_vector_store_service
 
 # User-friendly error messages for prohibited SQL operations
@@ -81,10 +83,12 @@ def validate_sql(sql: str) -> ValidationResult:
                 elif stmt_key == "WITH":
                     statement_type = SQLCategory.WITH
                 elif stmt_key == "SEMICOLON":
-                    # Skip trailing semicolon statements (created when SQL ends with `;` followed by comment)
+                    # Skip trailing semicolons (from SQL ending with `;` followed by comment)
                     continue
                 else:
-                    errors.append(f"Only SELECT and WITH (CTE) statements are allowed, got: {stmt_key}")
+                    errors.append(
+                        f"Only SELECT and WITH (CTE) statements are allowed, got: {stmt_key}"
+                    )
 
     except sqlglot.errors.ParseError as e:
         errors.append(f"SQL syntax error: {e}")
@@ -184,19 +188,20 @@ def validate_sql_query(sql: str) -> dict[str, Any]:
         Validation result with is_valid, errors, warnings, and statement_type
     """
     result = validate_sql(sql)
-
-    # Collect errors and warnings
     errors = list(result.errors)
     warnings = list(result.warnings)
 
-    # Check table existence if basic validation passed - now returns error, not warning
+    # Check table existence if basic validation passed
     if result.is_valid:
-        tables_valid, missing_tables, table_error = validate_tables_exist(sql)
+        tables_valid, _, table_error = validate_tables_exist(sql)
         if not tables_valid and table_error:
             errors.append(table_error)
 
+    # Query is valid only if syntax validation passed AND no table errors were added
+    is_valid = result.is_valid and len(errors) == 0
+
     return {
-        "is_valid": result.is_valid and (len(errors) == len(result.errors)),
+        "is_valid": is_valid,
         "errors": errors,
         "warnings": warnings,
         "statement_type": result.statement_type.value,
@@ -204,37 +209,114 @@ def validate_sql_query(sql: str) -> dict[str, Any]:
 
 
 @tool
-async def execute_sql_query(sql: str, max_rows: int = 100) -> dict[str, Any]:
-    """Execute a SQL query against the database.
+async def execute_sql_query(
+    sql: str,
+    page: int = 1,
+    page_size: int = 100,
+    session_id: str = "default",
+) -> dict[str, Any]:
+    """Execute a SQL query against the database and return paginated results.
+
+    This tool executes validated SQL queries and returns results suitable for
+    displaying in interactive tables. Results are paginated and include a
+    query token for CSV downloads.
 
     Args:
         sql: The SQL query to execute (must be SELECT or WITH)
-        max_rows: Maximum number of rows to return (default: 100)
+        page: Page number to retrieve (1-indexed, default: 1)
+        page_size: Number of rows per page (default: 100, max: 500)
+        session_id: Session identifier for query caching (default: "default")
 
     Returns:
-        Query results with rows, columns, and row_count
+        Query results with rows, columns, pagination info, and query_token
     """
+    settings = get_settings()
+
+    # Enforce page_size limits
+    page_size = min(page_size, 500)
+    page_size = max(page_size, 1)
+    page = max(page, 1)
+
     # First validate
     validation = validate_sql(sql)
     if not validation.is_valid:
-        return {
-            "success": False,
-            "error": f"Validation failed: {'; '.join(validation.errors)}",
-            "rows": None,
-            "columns": None,
-            "row_count": 0,
-        }
+        return _error_result(
+            f"Validation failed: {'; '.join(validation.errors)}",
+            page=page,
+            page_size=page_size,
+        )
 
-    # Execute
+    # Check table existence
+    tables_valid, _, table_error = validate_tables_exist(sql)
+    if not tables_valid and table_error:
+        return _error_result(table_error, page=page, page_size=page_size)
+
     db_service = get_database_service()
-    result = await db_service.execute_query(sql, max_rows=max_rows)
+
+    # Get total count for pagination (with timeout to avoid blocking)
+    total_count = await db_service.execute_count_query(sql, timeout=5.0)
+
+    # Cap page number to prevent extremely large offsets
+    max_page = 10000
+    page = min(page, max_page)
+
+    # Calculate offset
+    offset = (page - 1) * page_size
+
+    # Enforce max rows limit
+    effective_page_size = min(page_size, settings.sql_max_rows)
+
+    # Execute paginated query
+    result = await db_service.execute_query_paginated(
+        sql, offset=offset, limit=effective_page_size
+    )
+
+    if not result.success:
+        return _error_result(
+            result.error or "Query execution failed",
+            page=page,
+            page_size=page_size,
+        )
+
+    # Determine if there are more results
+    has_more = False
+    if total_count is not None:
+        has_more = (offset + result.row_count) < total_count
+    elif result.row_count == effective_page_size:
+        # If we got a full page, there might be more
+        has_more = True
+
+    # Generate query token for CSV downloads
+    query_cache = get_query_cache()
+    query_token = query_cache.store(sql, session_id)
 
     return {
-        "success": result.success,
+        "success": True,
         "rows": result.rows,
         "columns": result.columns,
         "row_count": result.row_count,
-        "error": result.error,
+        "total_count": total_count,
+        "has_more": has_more,
+        "page": page,
+        "page_size": page_size,
+        "query_token": query_token,
+        "error": None,
+    }
+
+
+def _error_result(error: str, page: int = 1, page_size: int = 100) -> dict[str, Any]:
+    """Create an error result dictionary."""
+    return {
+        "success": False,
+        "rows": None,
+        "columns": None,
+        "row_count": 0,
+        "total_count": None,
+        "has_more": False,
+        "page": page,
+        "page_size": page_size,
+        "query_token": None,
+        "error": error,
     }
 
 

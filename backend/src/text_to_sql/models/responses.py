@@ -49,12 +49,29 @@ class StreamEvent(BaseModel):
         "sql_generated",
         "validation_complete",
         "execution_complete",
+        "tool_execution_complete",  # New: for LLM-driven tool execution
         "token",
         "response_complete",
         "error",
         "done",
     ]
     data: dict[str, Any]
+
+
+class ToolExecutionEvent(BaseModel):
+    """Event data for tool_execution_complete SSE event."""
+
+    tool_name: str = Field(..., description="Name of the executed tool")
+    success: bool = Field(..., description="Whether tool execution succeeded")
+    rows: list[dict[str, Any]] | None = Field(default=None, description="Query results")
+    columns: list[str] | None = Field(default=None, description="Column names")
+    row_count: int = Field(default=0, description="Number of rows returned")
+    total_count: int | None = Field(default=None, description="Total rows matching query")
+    has_more: bool = Field(default=False, description="Whether more rows exist")
+    page: int = Field(default=1, description="Current page number")
+    page_size: int = Field(default=100, description="Rows per page")
+    query_token: str | None = Field(default=None, description="Token for CSV download")
+    error: str | None = Field(default=None, description="Error message if failed")
 
 
 class HealthResponse(BaseModel):

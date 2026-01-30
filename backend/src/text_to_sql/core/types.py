@@ -43,3 +43,22 @@ class ExecutionResult(NamedTuple):
     row_count: int
     columns: list[str] | None
     error: str | None
+
+
+class ToolExecutionResult(NamedTuple):
+    """Result of SQL tool execution with pagination support.
+
+    This type is used by the execute_sql_query tool to return
+    results that can be displayed as interactive tables.
+    """
+
+    success: bool
+    rows: list[dict] | None
+    columns: list[str] | None
+    row_count: int  # Number of rows in current page
+    total_count: int | None  # Total rows matching query (for pagination)
+    has_more: bool  # Whether more rows exist beyond current page
+    page: int  # Current page number (1-indexed)
+    page_size: int  # Number of rows per page
+    query_token: str | None  # Token for CSV download
+    error: str | None
