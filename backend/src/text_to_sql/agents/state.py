@@ -59,6 +59,11 @@ class AgentState(TypedDict):
     csv_exceeds_limit: bool
     query_token: str | None
 
+    # Tool call tracking (for LLM-driven tool execution)
+    tool_calls: list[dict[str, Any]]  # List of tool calls requested by LLM
+    tool_results: list[dict[str, Any]]  # Results from executed tools
+    pending_tool_call: dict[str, Any] | None  # Current tool call being processed
+
 
 def create_initial_state(
     question: str,
@@ -90,13 +95,14 @@ def create_initial_state(
         natural_language_response=None,
         session_id=session_id,
         retry_count=0,
-        # Pagination state
         page=page,
         page_size=page_size,
         total_count=None,
         has_more_results=False,
-        # CSV metadata
         csv_available=False,
         csv_exceeds_limit=False,
         query_token=None,
+        tool_calls=[],
+        tool_results=[],
+        pending_tool_call=None,
     )

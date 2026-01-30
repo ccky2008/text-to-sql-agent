@@ -124,6 +124,62 @@ export function useChat() {
                 }
                 break;
 
+              case "tool_execution_complete":
+                // Handle LLM-driven tool execution results
+                if (data.success) {
+                  const totalCount = (data.total_count as number) ?? null;
+                  const CSV_MAX_ROWS = 2500;
+
+                  // Initialize sqlResult if not already set
+                  sqlResult = sqlResult ?? {
+                    sql: "",
+                    explanation: null,
+                    isValid: true,
+                    validationErrors: [],
+                    validationWarnings: [],
+                    executed: false,
+                    results: null,
+                    rowCount: null,
+                    columns: null,
+                    totalCount: null,
+                    hasMore: false,
+                    page: 1,
+                    pageSize: 100,
+                    csvAvailable: false,
+                    csvExceedsLimit: false,
+                    queryToken: null,
+                  };
+
+                  // Update with tool execution results
+                  sqlResult = {
+                    ...sqlResult,
+                    executed: true,
+                    executedViaTool: true,
+                    results: (data.rows as Record<string, unknown>[]) ?? null,
+                    rowCount: (data.row_count as number) ?? 0,
+                    columns: (data.columns as string[]) ?? null,
+                    totalCount,
+                    hasMore: (data.has_more as boolean) ?? false,
+                    page: (data.page as number) ?? 1,
+                    pageSize: (data.page_size as number) ?? 100,
+                    queryToken: (data.query_token as string) ?? null,
+                    csvAvailable: !!data.query_token,
+                    csvExceedsLimit: totalCount !== null && totalCount > CSV_MAX_ROWS,
+                  };
+
+                  // Update the message immediately to show results
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, sqlResult }
+                        : msg
+                    )
+                  );
+                } else if (data.error) {
+                  setError(data.error as string);
+                }
+                break;
+
               case "token":
                 streamedContent += data.content as string;
                 setMessages((prev) =>

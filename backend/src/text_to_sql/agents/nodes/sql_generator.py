@@ -1,11 +1,13 @@
 """SQL generation node using Azure OpenAI."""
 
 import re
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.tools.sql_tools import execute_sql_query
 from text_to_sql.config import get_settings
 from text_to_sql.services.system_rules import (
     EXCLUDED_SELECT_COLUMNS,
@@ -62,6 +64,29 @@ When handling batch requests:
 - Always include an ORDER BY clause to ensure consistent ordering across batches (use primary key if no specific order is requested)
 - The recommended maximum batch size is 2500 records
 - If the user doesn't specify a batch size, suggest using 2000-2500 records per batch
+
+## TOOL USAGE
+You have access to the `execute_sql_query` tool which can directly execute SQL queries against the database.
+
+When the user asks you to "run", "execute", or "show results" for a query, you SHOULD use the tool to execute the SQL and return the actual results. The tool will:
+- Validate the SQL for safety (read-only operations only)
+- Execute the query with pagination support
+- Return the results in a format suitable for display as an interactive table
+
+Tool parameters:
+- sql: The SQL query to execute (required)
+- page: Page number for pagination (default: 1)
+- page_size: Number of rows per page (default: 100, max: 500)
+
+Use the tool when:
+- The user explicitly asks to run/execute a query
+- The user wants to see actual data results
+- You need to verify query results
+
+Do NOT use the tool when:
+- The user just asks you to write/generate a query
+- The request is out-of-scope or read-only violation
+- You're explaining query structure without execution
 
 {system_rules}
 
@@ -183,6 +208,32 @@ def _parse_sql_response(content: str) -> tuple[str | None, str | None, str | Non
     return sql, explanation if explanation else None, None
 
 
+def _parse_tool_calls(response: Any) -> list[dict[str, Any]]:
+    """Extract tool calls from LLM response.
+
+    Handles malformed tool call structures gracefully by skipping invalid entries.
+
+    Returns:
+        List of tool call dictionaries with id, name, and args.
+    """
+    if not hasattr(response, "tool_calls") or not response.tool_calls:
+        return []
+
+    tool_calls = []
+    for tc in response.tool_calls:
+        try:
+            if not isinstance(tc, dict):
+                continue
+            tool_calls.append({
+                "id": str(tc.get("id", "")),
+                "name": str(tc.get("name", "")),
+                "args": tc.get("args") if isinstance(tc.get("args"), dict) else {},
+            })
+        except (TypeError, AttributeError):
+            continue
+    return tool_calls
+
+
 async def sql_generator_node(state: AgentState) -> dict:
     """Generate SQL query from natural language question.
 
@@ -190,16 +241,21 @@ async def sql_generator_node(state: AgentState) -> dict:
     an accurate SQL query.
 
     May return special response types for out-of-scope or read-only requests.
+    Can also return tool calls for direct SQL execution.
     """
     settings = get_settings()
 
-    llm = AzureChatOpenAI(
+    # Create LLM with tool binding
+    base_llm = AzureChatOpenAI(
         azure_endpoint=settings.azure_openai_endpoint,
         api_key=settings.azure_openai_api_key.get_secret_value(),
         api_version=settings.azure_openai_api_version,
         azure_deployment=settings.azure_openai_deployment_name,
         temperature=0,
     )
+
+    # Bind the SQL execution tool
+    llm = base_llm.bind_tools([execute_sql_query])
 
     context = _format_context(state)
 
@@ -215,15 +271,35 @@ async def sql_generator_node(state: AgentState) -> dict:
         messages = [messages[0]] + list(history_messages) + [messages[1]]
 
     response = await llm.ainvoke(messages)
+
+    # Check for tool calls first
+    tool_calls = _parse_tool_calls(response)
+    if tool_calls:
+        # LLM wants to execute SQL directly
+        first_tool_call = tool_calls[0]
+        sql_from_tool = first_tool_call.get("args", {}).get("sql")
+
+        return {
+            "generated_sql": sql_from_tool,
+            "sql_explanation": "Executing query via tool call.",
+            "messages": [HumanMessage(content=state["question"])],
+            "special_response_type": None,
+            "tool_calls": tool_calls,
+            "pending_tool_call": first_tool_call,
+        }
+
+    # No tool calls - parse the text response
     content = response.content if isinstance(response.content, str) else str(response.content)
 
     sql, explanation, special_response_type = _parse_sql_response(content)
 
-    result = {
+    result: dict[str, Any] = {
         "generated_sql": sql,
         "sql_explanation": explanation,
         "messages": [HumanMessage(content=state["question"])],
         "special_response_type": special_response_type,
+        "tool_calls": [],
+        "pending_tool_call": None,
     }
 
     # If this is a special response (out-of-scope or read-only), skip SQL generation

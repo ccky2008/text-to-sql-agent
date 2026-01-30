@@ -8,6 +8,7 @@ from text_to_sql.agents.nodes.executor import executor_node
 from text_to_sql.agents.nodes.responder import responder_node
 from text_to_sql.agents.nodes.retrieval import retrieval_node
 from text_to_sql.agents.nodes.sql_generator import sql_generator_node
+from text_to_sql.agents.nodes.tool_executor import tool_executor_node
 from text_to_sql.agents.nodes.validator import validator_node
 from text_to_sql.agents.state import AgentState
 from text_to_sql.services.checkpointer import get_session_manager
@@ -18,12 +19,17 @@ MAX_RETRIES = 2
 
 def should_validate_or_respond(
     state: AgentState,
-) -> Literal["validator", "responder"]:
-    """Determine if SQL should be validated or skip to response.
+) -> Literal["validator", "responder", "tool_executor"]:
+    """Determine if SQL should be validated, tool executed, or skip to response.
 
+    Routes to tool_executor if LLM requested a tool call.
     Routes directly to responder if this is a special response (out-of-scope, read-only).
     Otherwise, routes to validator for normal SQL processing.
     """
+    # Check if there's a pending tool call
+    if state.get("pending_tool_call"):
+        return "tool_executor"
+
     special_type = state.get("special_response_type")
     if special_type in ("OUT_OF_SCOPE", "READ_ONLY"):
         return "responder"
@@ -66,6 +72,7 @@ def _build_graph() -> StateGraph:
     Graph flow:
     1. Retrieval - Fetch context from vector stores
     2. SQL Generator - Generate SQL from question + context
+       - If tool call requested -> Tool Executor -> Responder
        - If out-of-scope or read-only request -> Responder (skip validation/execution)
     3. Validator - Validate SQL syntax and safety
        - If resource not found -> Responder (skip execution)
@@ -82,6 +89,7 @@ def _build_graph() -> StateGraph:
     graph.add_node("sql_generator", sql_generator_node)
     graph.add_node("validator", validator_node)
     graph.add_node("executor", executor_node)
+    graph.add_node("tool_executor", tool_executor_node)
     graph.add_node("responder", responder_node)
     graph.add_node("increment_retry", increment_retry)
 
@@ -92,15 +100,20 @@ def _build_graph() -> StateGraph:
     graph.add_edge("retrieval", "sql_generator")
 
     # Conditional routing after SQL generation
-    # Skip validation for special responses (out-of-scope, read-only)
+    # - Route to tool_executor if LLM requested a tool call
+    # - Skip validation for special responses (out-of-scope, read-only)
     graph.add_conditional_edges(
         "sql_generator",
         should_validate_or_respond,
         {
             "validator": "validator",
             "responder": "responder",
+            "tool_executor": "tool_executor",
         },
     )
+
+    # After tool execution, go to responder
+    graph.add_edge("tool_executor", "responder")
 
     # Conditional routing after validation
     graph.add_conditional_edges(

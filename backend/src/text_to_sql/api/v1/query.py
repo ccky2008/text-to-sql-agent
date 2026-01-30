@@ -1,7 +1,7 @@
 """Query endpoint with streaming support."""
 
 import json
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
@@ -90,6 +90,28 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
                                 "csv_available": node_output.get("csv_available", False),
                                 "csv_exceeds_limit": node_output.get("csv_exceeds_limit", False),
                                 "query_token": node_output.get("query_token"),
+                            }, default=str),
+                        }
+
+                elif node_name == "tool_executor":
+                    # Handle LLM-driven tool execution results
+                    tool_results = node_output.get("tool_results", [])
+                    for tool_result in tool_results:
+                        result_data = tool_result.get("result") or {}
+                        yield {
+                            "event": "tool_execution_complete",
+                            "data": json.dumps({
+                                "tool_name": tool_result.get("tool_name", ""),
+                                "success": tool_result.get("success", False),
+                                "rows": result_data.get("rows"),
+                                "columns": result_data.get("columns"),
+                                "row_count": result_data.get("row_count", 0),
+                                "total_count": result_data.get("total_count"),
+                                "has_more": result_data.get("has_more", False),
+                                "page": result_data.get("page", 1),
+                                "page_size": result_data.get("page_size", 100),
+                                "query_token": result_data.get("query_token"),
+                                "error": tool_result.get("error"),
                             }, default=str),
                         }
 
@@ -182,4 +204,4 @@ async def query(request: QueryRequest):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
