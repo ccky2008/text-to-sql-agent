@@ -42,6 +42,7 @@ export interface QueryResponse {
   row_count: number | null;
   columns: string[] | null;
   natural_language_response: string | null;
+  suggested_questions: string[];
   session_id: string;
   error: string | null;
   pagination: PaginationInfo | null;
@@ -56,6 +57,12 @@ export interface CSVLimitsResponse {
   batch_download_instructions: string;
 }
 
+// Suggested questions types
+export interface SuggestedQuestionsResponse {
+  questions: string[];
+  context_type: "initial" | "follow_up";
+}
+
 // SSE Event types
 export type SSEEventType =
   | "retrieval_complete"
@@ -65,6 +72,7 @@ export type SSEEventType =
   | "tool_execution_complete"
   | "token"
   | "response_complete"
+  | "suggested_questions"
   | "error"
   | "done";
 

@@ -4,13 +4,15 @@ import type { Message } from "@/types/chat";
 import { SQLDisplay } from "./SQLDisplay";
 import { ResultsTable } from "./ResultsTable";
 import { StreamingIndicator } from "./StreamingIndicator";
+import { SuggestedQuestions } from "./SuggestedQuestions";
 import clsx from "clsx";
 
 interface MessageBubbleProps {
   message: Message;
+  onSelectQuestion?: (question: string) => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onSelectQuestion }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
   return (
@@ -81,6 +83,19 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             minute: "2-digit",
           })}
         </div>
+
+        {/* Follow-up questions (for completed assistant messages) */}
+        {!isUser &&
+          !message.isStreaming &&
+          message.suggestedQuestions &&
+          message.suggestedQuestions.length > 0 &&
+          onSelectQuestion && (
+            <SuggestedQuestions
+              questions={message.suggestedQuestions}
+              onSelect={onSelectQuestion}
+              variant="follow_up"
+            />
+          )}
       </div>
     </div>
   );

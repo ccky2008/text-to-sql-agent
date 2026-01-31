@@ -5,3 +5,4 @@ export { MessageList } from "./MessageList";
 export { ResultsTable } from "./ResultsTable";
 export { SQLDisplay } from "./SQLDisplay";
 export { StreamingIndicator } from "./StreamingIndicator";
+export { SuggestedQuestions } from "./SuggestedQuestions";

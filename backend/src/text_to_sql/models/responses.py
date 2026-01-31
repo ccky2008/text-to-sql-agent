@@ -33,6 +33,9 @@ class QueryResponse(BaseModel):
     natural_language_response: str | None = Field(
         default=None, description="Natural language response"
     )
+    suggested_questions: list[str] = Field(
+        default_factory=list, description="Suggested follow-up questions"
+    )
     session_id: str = Field(..., description="Session ID for conversation continuity")
     error: str | None = Field(default=None, description="Error message if any")
     pagination: PaginationInfo | None = Field(default=None, description="Pagination metadata")
@@ -52,6 +55,7 @@ class StreamEvent(BaseModel):
         "tool_execution_complete",  # New: for LLM-driven tool execution
         "token",
         "response_complete",
+        "suggested_questions",  # New: for follow-up question suggestions
         "error",
         "done",
     ]
@@ -136,3 +140,12 @@ class CSVLimitsResponse(BaseModel):
     max_rows_per_download: int = Field(..., description="Maximum rows per CSV download")
     batch_download_available: bool = Field(default=True, description="Whether batch download is available")
     batch_download_instructions: str = Field(..., description="Instructions for batch downloading")
+
+
+class SuggestedQuestionsResponse(BaseModel):
+    """Response for suggested questions."""
+
+    questions: list[str] = Field(..., description="List of suggested questions")
+    context_type: Literal["initial", "follow_up"] = Field(
+        ..., description="Type of suggestions: initial (chat start) or follow_up (after response)"
+    )
