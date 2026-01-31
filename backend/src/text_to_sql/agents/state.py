@@ -42,6 +42,9 @@ class AgentState(TypedDict):
     # Final response
     natural_language_response: str | None
 
+    # Suggested follow-up questions
+    suggested_questions: list[str]
+
     # Session tracking
     session_id: str
 
@@ -93,6 +96,7 @@ def create_initial_state(
         columns=None,
         execution_error=None,
         natural_language_response=None,
+        suggested_questions=[],
         session_id=session_id,
         retry_count=0,
         page=page,

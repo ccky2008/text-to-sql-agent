@@ -61,6 +61,7 @@ export function useChat() {
       // Track state for building the response
       let streamedContent = "";
       let sqlResult: SQLResult | undefined;
+      let suggestedQuestions: string[] = [];
 
       abortControllerRef.current = new AbortController();
 
@@ -195,6 +196,17 @@ export function useChat() {
                 streamedContent = data.response as string;
                 break;
 
+              case "suggested_questions":
+                suggestedQuestions = (data.questions as string[]) ?? [];
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, suggestedQuestions }
+                      : msg
+                  )
+                );
+                break;
+
               case "done":
                 if (data.session_id) {
                   setSessionId(data.session_id as string);
@@ -213,7 +225,13 @@ export function useChat() {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: streamedContent, sqlResult, isStreaming: false }
+              ? {
+                  ...msg,
+                  content: streamedContent,
+                  sqlResult,
+                  suggestedQuestions,
+                  isStreaming: false,
+                }
               : msg
           )
         );

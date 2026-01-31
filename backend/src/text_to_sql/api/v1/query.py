@@ -1,6 +1,7 @@
 """Query endpoint with streaming support."""
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from uuid import uuid4
 
@@ -13,6 +14,9 @@ from text_to_sql.agents.state import create_initial_state
 from text_to_sql.models.requests import QueryRequest
 from text_to_sql.models.responses import PaginationInfo, QueryResponse
 from text_to_sql.services.checkpointer import get_session_manager
+from text_to_sql.services.suggestions import get_suggestions_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -122,6 +126,26 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
                 "data": json.dumps({"content": token}),
             }
 
+        # Generate follow-up questions (async, after response)
+        try:
+            suggestions_service = get_suggestions_service()
+            followup_questions = await suggestions_service.generate_followup_questions(
+                original_question=request.question,
+                sql=collected_state.get("generated_sql"),
+                results=collected_state.get("results"),
+                row_count=collected_state.get("row_count"),
+                columns=collected_state.get("columns"),
+                n=3,
+            )
+            if followup_questions:
+                yield {
+                    "event": "suggested_questions",
+                    "data": json.dumps({"questions": followup_questions}),
+                }
+        except Exception as e:
+            logger.warning(f"Failed to generate follow-up questions: {e}")
+            # Don't fail the request if follow-up generation fails
+
         # Update session
         session_manager.update_session(session_id)
 
@@ -183,6 +207,21 @@ async def query(request: QueryRequest):
                 has_prev=request.page > 1,
             )
 
+        # Generate follow-up questions
+        suggested_questions = []
+        try:
+            suggestions_service = get_suggestions_service()
+            suggested_questions = await suggestions_service.generate_followup_questions(
+                original_question=request.question,
+                sql=final_state.get("generated_sql"),
+                results=final_state.get("results"),
+                row_count=final_state.get("row_count"),
+                columns=final_state.get("columns"),
+                n=3,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to generate follow-up questions: {e}")
+
         return QueryResponse(
             question=request.question,
             generated_sql=final_state.get("generated_sql"),
@@ -195,6 +234,7 @@ async def query(request: QueryRequest):
             row_count=final_state.get("row_count"),
             columns=final_state.get("columns"),
             natural_language_response=final_state.get("natural_language_response"),
+            suggested_questions=suggested_questions,
             session_id=session_id,
             error=final_state.get("execution_error"),
             pagination=pagination,

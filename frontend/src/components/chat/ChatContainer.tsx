@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat } from "@/hooks/useChat";
+import { useSuggestedQuestions } from "@/hooks/useSuggestedQuestions";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 
@@ -14,6 +15,11 @@ export function ChatContainer() {
     cancelRequest,
     clearChat,
   } = useChat();
+
+  const {
+    questions: initialQuestions,
+    isLoading: initialQuestionsLoading,
+  } = useSuggestedQuestions();
 
   return (
     <div className="flex flex-col h-full">
@@ -63,7 +69,12 @@ export function ChatContainer() {
       )}
 
       {/* Messages */}
-      <MessageList messages={messages} />
+      <MessageList
+        messages={messages}
+        initialQuestions={initialQuestions}
+        initialQuestionsLoading={initialQuestionsLoading}
+        onSelectQuestion={sendMessage}
+      />
 
       {/* Input */}
       <ChatInput

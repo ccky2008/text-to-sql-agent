@@ -27,23 +27,6 @@ export interface SQLResult {
   executedViaTool?: boolean;
 }
 
-/**
- * Result from LLM-driven tool execution
- */
-export interface ToolExecutionResult {
-  toolName: string;
-  success: boolean;
-  rows: Record<string, unknown>[] | null;
-  columns: string[] | null;
-  rowCount: number;
-  totalCount: number | null;
-  hasMore: boolean;
-  page: number;
-  pageSize: number;
-  queryToken: string | null;
-  error: string | null;
-}
-
 export interface Message {
   id: string;
   role: MessageRole;
@@ -52,6 +35,7 @@ export interface Message {
   sqlResult?: SQLResult;
   isStreaming?: boolean;
   error?: string;
+  suggestedQuestions?: string[];
 }
 
 export interface ChatState {

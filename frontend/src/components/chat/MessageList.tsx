@@ -3,12 +3,21 @@
 import { useEffect, useRef } from "react";
 import type { Message } from "@/types/chat";
 import { MessageBubble } from "./MessageBubble";
+import { SuggestedQuestions } from "./SuggestedQuestions";
 
 interface MessageListProps {
   messages: Message[];
+  initialQuestions?: string[];
+  initialQuestionsLoading?: boolean;
+  onSelectQuestion?: (question: string) => void;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({
+  messages,
+  initialQuestions = [],
+  initialQuestionsLoading = false,
+  onSelectQuestion,
+}: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
@@ -19,7 +28,7 @@ export function MessageList({ messages }: MessageListProps) {
   if (messages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-lg">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
             <svg
               className="w-8 h-8 text-blue-600 dark:text-blue-400"
@@ -38,18 +47,18 @@ export function MessageList({ messages }: MessageListProps) {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Ask a question about your data
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            I can help you query your database using natural language. Just type
-            your question below and I&apos;ll generate the SQL for you.
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
+            I can help you query your cloud resources using natural language.
+            Select a suggestion below or type your own question.
           </p>
-          <div className="text-sm text-gray-400 dark:text-gray-500">
-            <p className="mb-2">Try asking:</p>
-            <ul className="space-y-1 text-left inline-block">
-              <li>&quot;Show me all users created this month&quot;</li>
-              <li>&quot;What are the top 10 orders by value?&quot;</li>
-              <li>&quot;How many products are in each category?&quot;</li>
-            </ul>
-          </div>
+          {onSelectQuestion && (
+            <SuggestedQuestions
+              questions={initialQuestions}
+              onSelect={onSelectQuestion}
+              variant="initial"
+              isLoading={initialQuestionsLoading}
+            />
+          )}
         </div>
       </div>
     );
@@ -58,7 +67,11 @@ export function MessageList({ messages }: MessageListProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-scrollbar">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble
+          key={message.id}
+          message={message}
+          onSelectQuestion={onSelectQuestion}
+        />
       ))}
       <div ref={bottomRef} />
     </div>
