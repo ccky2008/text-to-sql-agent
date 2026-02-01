@@ -53,6 +53,6 @@
     "content": "When displaying tags for resources, use aggregation to prevent row multiplication. For specific tags requested by name, use conditional MAX: MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('TagName') THEN kv.\"value\" END) AS \"TagName\". This pivots each tag into its own column. For all tags without specific names, use STRING_AGG(kv.\"key\" || '=' || kv.\"value\", ', ') to combine into one column. Always include GROUP BY on the resource's primary identifier (sysId) and displayed columns.",
     "category": "business_rule",
     "related_tables": ["configuration_item", "key_value"],
-    "keywords": ["tag", "display", "aggregation", "pivot", "MAX", "CASE", "STRING_AGG", "GROUP BY", "column"]
+    "keywords": ["tag", "display", "aggregation", "pivot", "MAX", "CASE", "STRING_AGG", "GROUP BY", "column", "show", "list", "output", "header"]
   }
 ]
