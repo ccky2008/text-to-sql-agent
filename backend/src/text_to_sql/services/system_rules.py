@@ -88,6 +88,16 @@ class SystemRulesService:
                 prefix_lines.append(f"  - {prefix}*: {desc}")
             sections.append("\n".join(prefix_lines))
 
+        # Key-value search rules
+        if kv_search := self._rules.get("key_value_search"):
+            kv_lines = [f"KEY_VALUE SEARCH: {kv_search['description']}"]
+            kv_lines.append(f"Rule: {kv_search['rule']}")
+            if examples := kv_search.get("examples"):
+                kv_lines.append("Examples:")
+                for example in examples:
+                    kv_lines.append(f"  - {example}")
+            sections.append("\n".join(kv_lines))
+
         return "\n\n".join(sections)
 
 

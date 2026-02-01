@@ -44,5 +44,16 @@
   "table_prefixes": {
     "aws_": "Amazon Web Services resources",
     "azure_": "Microsoft Azure resources"
+  },
+  "key_value_search": {
+    "description": "Case-insensitive search for key_value table columns",
+    "rule": "When searching the key_value table's 'key' and 'value' columns, use case-insensitive comparison by default. Use LOWER() function or ILIKE operator. Only use exact case-sensitive matching if the user explicitly requests case-sensitive search.",
+    "applies_to": "key_value table",
+    "examples": [
+      "LOWER(kv.\"key\") = LOWER('tag-name')",
+      "LOWER(kv.\"value\") = LOWER('tag-value')",
+      "kv.\"key\" ILIKE 'tag-name'",
+      "kv.\"value\" ILIKE '%partial-value%'"
+    ]
   }
 }
