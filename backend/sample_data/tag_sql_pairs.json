@@ -46,5 +46,13 @@
   {
     "question": "Show me all Azure VM that have AutoStartStop disabled",
     "sql_query": "SELECT \n        vm.\"name\",\n        vm.\"vmId\",\n        vm.\"vmSize\",\n        kv.\"value\" as autostop_status\n    FROM \"azure_vm\" vm\n    JOIN \"key_value\" kv ON vm.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('AutoStartStop') \n    AND LOWER(kv.\"value\") = LOWER('false')\n    AND vm.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Show me all EC2 instances with their Environment and ApplicationName",
+    "sql_query": "SELECT \n        e.\"instanceId\",\n        e.\"name\",\n        e.\"instanceType\",\n        MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('DCP-Environment') THEN kv.\"value\" END) AS \"Environment\",\n        MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('DCP-ApplicationName') THEN kv.\"value\" END) AS \"ApplicationName\"\n    FROM \"aws_ec2\" e\n    LEFT JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\" AND ci.\"deletedAt\" IS NULL\n    LEFT JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\" AND kv.\"deletedAt\" IS NULL\n    WHERE e.\"deletedAt\" IS NULL\n    GROUP BY e.\"sysId\", e.\"instanceId\", e.\"name\", e.\"instanceType\"\n    LIMIT 100"
+  },
+  {
+    "question": "Find all AWS accounts with tag DCPAccount-BuCode equals GIT",
+    "sql_query": "SELECT \n        a.\"accountId\",\n        a.\"name\",\n        MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('DCPAccount-BuCode') THEN kv.\"value\" END) AS \"DCPAccount-BuCode\"\n    FROM \"aws_account\" a\n    LEFT JOIN \"configuration_item\" ci ON a.\"sysId\" = ci.\"sysId\" AND ci.\"deletedAt\" IS NULL\n    LEFT JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\" AND kv.\"deletedAt\" IS NULL\n    WHERE a.\"deletedAt\" IS NULL\n    AND EXISTS (\n        SELECT 1 FROM \"key_value\" kv2\n        JOIN \"configuration_item\" ci2 ON kv2.\"objectId\" = ci2.\"objectId\"\n        WHERE ci2.\"sysId\" = a.\"sysId\"\n        AND LOWER(kv2.\"key\") = LOWER('DCPAccount-BuCode')\n        AND LOWER(kv2.\"value\") = LOWER('GIT')\n        AND kv2.\"deletedAt\" IS NULL\n    )\n    GROUP BY a.\"sysId\", a.\"accountId\", a.\"name\"\n    LIMIT 100"
   }
 ]
