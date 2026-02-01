@@ -1,19 +1,19 @@
 [
   {
     "question": "Find all EC2 instances in production environment",
-    "sql_query": "SELECT e.\"instanceId\", e.\"name\", e.\"instanceType\", e.\"state\"\n    FROM \"aws_ec2\" e\n    JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\"\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCP-Environment'\n    AND kv.\"value\" = 'PRD'\n    AND e.\"deletedAt\" IS NULL\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL"
+    "sql_query": "SELECT e.\"instanceId\", e.\"name\", e.\"instanceType\", e.\"state\"\n    FROM \"aws_ec2\" e\n    JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\"\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('DCP-Environment')\n    AND LOWER(kv.\"value\") = LOWER('PRD')\n    AND e.\"deletedAt\" IS NULL\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL"
   },
   {
     "question": "Show EC2 instances owned by application Opus",
-    "sql_query": "SELECT e.\"instanceId\", e.\"name\", e.\"instanceType\", kv.\"value\" as app_name\n    FROM \"aws_ec2\" e\n    JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\"\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCP-ApplicationName'\n    AND kv.\"value\" = 'Opus'\n    AND e.\"deletedAt\" IS NULL"
+    "sql_query": "SELECT e.\"instanceId\", e.\"name\", e.\"instanceType\", kv.\"value\" as app_name\n    FROM \"aws_ec2\" e\n    JOIN \"configuration_item\" ci ON e.\"sysId\" = ci.\"sysId\"\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('DCP-ApplicationName')\n    AND LOWER(kv.\"value\") = LOWER('Opus')\n    AND e.\"deletedAt\" IS NULL"
   },
   {
     "question": "List all resources with tag DCP-AppRef GIT-8OQ9K2",
-    "sql_query": "SELECT ci.\"class\" as resource_type, ci.\"objectId\", kv.\"value\" as app_ref\n    FROM \"configuration_item\" ci\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCP-AppRef'\n    AND kv.\"value\" = 'GIT-8OQ9K2'\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL"
+    "sql_query": "SELECT ci.\"class\" as resource_type, ci.\"objectId\", kv.\"value\" as app_ref\n    FROM \"configuration_item\" ci\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('DCP-AppRef')\n    AND LOWER(kv.\"value\") = LOWER('GIT-8OQ9K2')\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL"
   },
   {
     "question": "Count resources by business unit",
-    "sql_query": "SELECT kv.\"value\" as business_unit, COUNT(*) as resource_count\n    FROM \"configuration_item\" ci\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE kv.\"key\" = 'DCPAccount-BUCode'\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL\n    GROUP BY kv.\"value\"\n    ORDER BY resource_count DESC"
+    "sql_query": "SELECT kv.\"value\" as business_unit, COUNT(*) as resource_count\n    FROM \"configuration_item\" ci\n    JOIN \"key_value\" kv ON ci.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('DCPAccount-BUCode')\n    AND ci.\"deletedAt\" IS NULL\n    AND kv.\"deletedAt\" IS NULL\n    GROUP BY kv.\"value\"\n    ORDER BY resource_count DESC"
   },
   {
     "question": "Show me all virtual machines across AWS and Azure with their memory and CPU specs",
@@ -37,10 +37,14 @@
   },
   {
     "question": "Show me all AWS EC2 instances that have AutoStartStop enabled",
-    "sql_query": "SELECT \n        e.\"name\",\n        e.\"instanceId\",\n        e.\"instanceType\",\n        e.\"privateIp\",\n        e.\"objectId\",\n        kv.\"value\" as autostop_status\n    FROM \"aws_ec2\" e\n    JOIN \"key_value\" kv ON e.\"objectId\" = kv.\"objectId\"\n    WHERE UPPER(kv.\"key\") = UPPER('AutoStartStop') \n    AND UPPER(kv.\"value\") = UPPER('true')\n    AND e.\"deletedAt\" IS NULL"
+    "sql_query": "SELECT \n        e.\"name\",\n        e.\"instanceId\",\n        e.\"instanceType\",\n        e.\"privateIp\",\n        e.\"objectId\",\n        kv.\"value\" as autostop_status\n    FROM \"aws_ec2\" e\n    JOIN \"key_value\" kv ON e.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('AutoStartStop') \n    AND LOWER(kv.\"value\") = LOWER('true')\n    AND e.\"deletedAt\" IS NULL"
   },
   {
     "question": "Find all AWS EC2 instances that don't have AutoStartStop configured",
-    "sql_query": "SELECT \n        e.\"name\",\n        e.\"instanceId\",\n        e.\"instanceType\",\n        e.\"privateIp\",\n        e.\"objectId\"\n    FROM \"aws_ec2\" e\n    WHERE e.\"objectId\" NOT IN (\n        SELECT DISTINCT \"objectId\" \n        FROM \"key_value\" \n        WHERE UPPER(\"key\") = UPPER('AutoStartStop')\n    )\n    AND e.\"deletedAt\" IS NULL"
+    "sql_query": "SELECT \n        e.\"name\",\n        e.\"instanceId\",\n        e.\"instanceType\",\n        e.\"privateIp\",\n        e.\"objectId\"\n    FROM \"aws_ec2\" e\n    WHERE e.\"objectId\" NOT IN (\n        SELECT DISTINCT \"objectId\" \n        FROM \"key_value\" \n        WHERE LOWER(\"key\") = LOWER('AutoStartStop')\n    )\n    AND e.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Show me all Azure VM that have AutoStartStop disabled",
+    "sql_query": "SELECT \n        vm.\"name\",\n        vm.\"vmId\",\n        vm.\"vmSize\",\n        kv.\"value\" as autostop_status\n    FROM \"azure_vm\" vm\n    JOIN \"key_value\" kv ON vm.\"objectId\" = kv.\"objectId\"\n    WHERE LOWER(kv.\"key\") = LOWER('AutoStartStop') \n    AND LOWER(kv.\"value\") = LOWER('false')\n    AND vm.\"deletedAt\" IS NULL"
   }
 ]

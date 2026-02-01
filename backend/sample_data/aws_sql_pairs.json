@@ -206,5 +206,29 @@
   {
     "question": "Which EC2s have 'test' in their name?",
     "sql_query": "SELECT \"instanceId\", \"name\", \"instanceType\", \"vCpu\", \"memoryInGib\", \"state\", \"privateIp\", \"publicIp\", \"resourceCreationTime\"\n    FROM \"public\".\"aws_ec2\"\n    WHERE \"name\" LIKE '%test%'\n    AND \"deletedAt\" IS NULL;"
+  },
+  {
+    "question": "Show all active AWS accounts",
+    "sql_query": "SELECT \"accountId\", \"name\", \"email\", \"status\", \"resourceCreationTime\" FROM \"public\".\"aws_account\" WHERE LOWER(\"status\") = 'active' AND \"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Show all EKS clusters for account 095879369453",
+    "sql_query": "SELECT \n  aws_eks.\"name\",\n  aws_eks.\"objectId\",\n  aws_eks.\"apiEndpoint\",\n  aws_eks.\"isPublicAccess\",\n  aws_eks.\"version\",\n  aws_eks.\"resourceCreationTime\",\n  (regexp_split_to_array(aws_eks.\"objectId\", ':'))[5] AS \"accountId\"\nFROM aws_eks\nWHERE (regexp_split_to_array(aws_eks.\"objectId\", ':'))[5] = '095879369453'\n  AND aws_eks.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Show all EKS clusters in us-east-1 region for account 095879369453",
+    "sql_query": "SELECT \n  aws_eks.\"name\",\n  aws_eks.\"objectId\",\n  aws_eks.\"apiEndpoint\",\n  aws_eks.\"isPublicAccess\",\n  aws_eks.\"version\",\n  aws_eks.\"resourceCreationTime\",\n  (regexp_split_to_array(aws_eks.\"objectId\", ':'))[5] AS \"accountId\",\n  (regexp_split_to_array(aws_eks.\"objectId\", ':'))[4] AS \"region\"\nFROM aws_eks\nWHERE (regexp_split_to_array(aws_eks.\"objectId\", ':'))[5] = '095879369453'\n  AND (regexp_split_to_array(aws_eks.\"objectId\", ':'))[4] = 'us-east-1'\n  AND aws_eks.\"deletedAt\" IS NULL"
+  },
+  {
+    "question": "Find all resources under AWS account 095879369453",
+    "sql_query": "SELECT ci.\"class\" AS resource_type, ci.\"objectId\", ci.\"sysId\" FROM \"configuration_item\" ci WHERE ci.\"class\" LIKE 'aws_%' AND (regexp_split_to_array(ci.\"objectId\", ':'))[5] = '095879369453' AND ci.\"deletedAt\" IS NULL ORDER BY ci.\"class\", ci.\"objectId\""
+  },
+  {
+    "question": "Show me all EKS clusters and their tags in the GIT business unit",
+    "sql_query": "SELECT \"awseksentity\".\"resourceCreationTime\" AS \"awseksentity_resourceCreationTime\", \"awseksentity\".\"objectId\" AS \"awseksentity_objectId\", \"awseksentity\".\"apiEndpoint\" AS \"awseksentity_apiEndpoint\", \"awseksentity\".\"isPublicAccess\" AS \"awseksentity_isPublicAccess\", \"awseksentity\".\"version\" AS \"awseksentity_version\", \"awseksentity\".\"name\" AS \"awseksentity_name\", \"ci\".\"class\" AS \"ci_class\", \"tag\".\"value\" AS \"tag_value\", \"tag\".\"key\" AS \"tag_key\" FROM \"aws_eks\" \"awseksentity\" LEFT JOIN \"configuration_item\" \"ci\" ON \"awseksentity\".\"sysId\" = \"ci\".\"sysId\" AND \"ci\".\"deletedAt\" IS NULL LEFT JOIN \"key_value\" \"tag\" ON \"ci\".\"objectId\" = \"tag\".\"objectId\" AND \"tag\".\"deletedAt\" IS NULL WHERE \"awseksentity\".\"sysId\" IN (SELECT \"awseksentity\".\"sysId\" FROM \"aws_eks\" \"awseksentity\" LEFT JOIN \"configuration_item\" \"ci\" ON \"awseksentity\".\"sysId\" = \"ci\".\"sysId\" AND \"ci\".\"deletedAt\" IS NULL LEFT JOIN \"key_value\" \"tag\" ON \"ci\".\"objectId\" = \"tag\".\"objectId\" AND \"tag\".\"deletedAt\" IS NULL WHERE \"awseksentity\".\"deletedAt\" IS NULL AND EXISTS (SELECT 1 FROM aws_account LEFT JOIN configuration_item ci ON aws_account.\"sysId\" = ci.\"sysId\" LEFT JOIN key_value tag ON ci.\"objectId\" = tag.\"objectId\" WHERE \"tag\".\"key\" ILIKE '%DCPAccount-BuCode%' AND \"tag\".\"value\" ILIKE '%GIT%' AND awseksentity.\"objectId\" LIKE '%' || aws_account.\"accountId\" || '%') GROUP BY \"awseksentity\".\"sysId\") AND \"awseksentity\".\"deletedAt\" IS NULL ORDER BY \"awseksentity\".\"sysId\" ASC"
+  },
+  {
+    "question": "Show me all EKS clusters in the HKG business unit without tags",
+    "sql_query": "SELECT aws_eks.\"name\", aws_eks.\"objectId\", aws_eks.\"apiEndpoint\", aws_eks.\"isPublicAccess\", aws_eks.\"version\", aws_eks.\"resourceCreationTime\" FROM \"aws_eks\" aws_eks WHERE aws_eks.\"deletedAt\" IS NULL AND EXISTS ( SELECT 1 FROM aws_account LEFT JOIN configuration_item ci ON aws_account.\"sysId\" = ci.\"sysId\" AND ci.\"deletedAt\" IS NULL LEFT JOIN key_value tag ON ci.\"objectId\" = tag.\"objectId\" AND tag.\"deletedAt\" IS NULL WHERE tag.\"key\" ILIKE '%DCPAccount-BuCode%' AND tag.\"value\" ILIKE '%HKG%' AND aws_eks.\"objectId\" LIKE '%' || aws_account.\"accountId\" || '%' ) ORDER BY aws_eks.\"sysId\" ASC"
   }
 ]
