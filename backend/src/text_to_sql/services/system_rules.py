@@ -98,6 +98,20 @@ class SystemRulesService:
                     kv_lines.append(f"  - {example}")
             sections.append("\n".join(kv_lines))
 
+        # Tag aggregation rules
+        if tag_agg := self._rules.get("tag_aggregation"):
+            tag_lines = [f"TAG AGGREGATION: {tag_agg['description']}"]
+            tag_lines.append(f"Rule: {tag_agg['rule']}")
+            if patterns := tag_agg.get("patterns"):
+                tag_lines.append("Patterns:")
+                for name, pattern in patterns.items():
+                    tag_lines.append(f"  - {name}: {pattern}")
+            if examples := tag_agg.get("examples"):
+                tag_lines.append("Examples:")
+                for example in examples:
+                    tag_lines.append(f"  - {example}")
+            sections.append("\n".join(tag_lines))
+
         return "\n\n".join(sections)
 
 

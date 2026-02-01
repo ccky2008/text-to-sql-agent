@@ -55,5 +55,20 @@
       "kv.\"key\" ILIKE 'tag-name'",
       "kv.\"value\" ILIKE '%partial-value%'"
     ]
+  },
+  "tag_aggregation": {
+    "description": "When displaying tags for resources, use the tag key as column header with tag value as cell value",
+    "rule": "NEVER output generic 'TAG_KEY' or 'TAG_VALUE' columns. Always use the actual tag key name as the column header. Use conditional MAX pattern: MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('TagName') THEN kv.\"value\" END) AS \"TagName\". This applies whether filtering by tag or just displaying tags. Always GROUP BY resource identifier to prevent row multiplication.",
+    "applies_to": "Any query involving tags from key_value table",
+    "patterns": {
+      "tag_as_column": "MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('TagName') THEN kv.\"value\" END) AS \"TagName\"",
+      "filter_and_display": "Use WHERE to filter, then MAX(CASE WHEN...) to display the tag value in a column named after the tag key",
+      "multiple_tags": "For 'all tags' without specific names, use STRING_AGG(kv.\"key\" || '=' || kv.\"value\", ', ') AS tags"
+    },
+    "examples": [
+      "'find accounts with DCPAccount-BuCode = GIT' -> Filter by tag AND display as: MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('DCPAccount-BuCode') THEN kv.\"value\" END) AS \"DCPAccount-BuCode\"",
+      "'show EC2 with Environment tag' -> MAX(CASE WHEN LOWER(kv.\"key\") = LOWER('DCP-Environment') THEN kv.\"value\" END) AS \"Environment\"",
+      "'list VMs with all their tags' -> STRING_AGG to combine into one column"
+    ]
   }
 }

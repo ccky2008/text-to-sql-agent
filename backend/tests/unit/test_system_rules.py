@@ -101,3 +101,86 @@ class TestSystemRulesService:
         service = SystemRulesService("/nonexistent/path/rules.json")
         prompt = service.format_for_prompt()
         assert prompt == ""
+
+
+class TestKeyValueSearchRule:
+    """Test key_value_search rule formatting."""
+
+    def test_format_for_prompt_includes_key_value_search(self):
+        """Test that format_for_prompt includes key_value_search rule."""
+        service = get_system_rules_service()
+        prompt = service.format_for_prompt()
+
+        assert "KEY_VALUE SEARCH" in prompt
+        assert "case-insensitive" in prompt.lower()
+
+    def test_format_for_prompt_includes_key_value_examples(self):
+        """Test that format_for_prompt includes key_value_search examples."""
+        service = get_system_rules_service()
+        prompt = service.format_for_prompt()
+
+        assert "LOWER(kv.\"key\")" in prompt
+        assert "ILIKE" in prompt
+
+
+class TestTagAggregationRule:
+    """Test tag_aggregation rule formatting."""
+
+    def test_format_for_prompt_includes_tag_aggregation(self):
+        """Test that format_for_prompt includes tag_aggregation rule."""
+        service = get_system_rules_service()
+        prompt = service.format_for_prompt()
+
+        assert "TAG AGGREGATION" in prompt
+        assert "NEVER output generic 'TAG_KEY' or 'TAG_VALUE'" in prompt
+
+    def test_format_for_prompt_includes_tag_aggregation_patterns(self):
+        """Test that format_for_prompt includes tag_aggregation SQL patterns."""
+        service = get_system_rules_service()
+        prompt = service.format_for_prompt()
+
+        assert "Patterns:" in prompt
+        assert "tag_as_column" in prompt
+        assert "MAX(CASE WHEN" in prompt
+        assert "STRING_AGG" in prompt
+
+    def test_format_for_prompt_includes_tag_aggregation_examples(self):
+        """Test that format_for_prompt includes tag_aggregation examples."""
+        service = get_system_rules_service()
+        prompt = service.format_for_prompt()
+
+        assert "Examples:" in prompt
+        assert "Environment" in prompt
+
+    def test_format_for_prompt_with_custom_tag_aggregation(self):
+        """Test format_for_prompt with custom tag_aggregation rule."""
+        rules = {
+            "tag_aggregation": {
+                "description": "Test tag aggregation",
+                "rule": "Use MAX CASE for pivoting",
+                "patterns": {
+                    "test_pattern": "MAX(CASE WHEN key = 'x' THEN val END)"
+                },
+                "examples": [
+                    "Example: pivot Environment tag"
+                ]
+            }
+        }
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(rules, f)
+            f.flush()
+            temp_path = f.name
+
+        try:
+            service = SystemRulesService(temp_path)
+            prompt = service.format_for_prompt()
+
+            assert "TAG AGGREGATION: Test tag aggregation" in prompt
+            assert "Rule: Use MAX CASE for pivoting" in prompt
+            assert "Patterns:" in prompt
+            assert "test_pattern: MAX(CASE WHEN key = 'x' THEN val END)" in prompt
+            assert "Examples:" in prompt
+            assert "Example: pivot Environment tag" in prompt
+        finally:
+            Path(temp_path).unlink()
