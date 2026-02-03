@@ -155,6 +155,34 @@ class TableInfo(BaseModel):
 
     def to_metadata(self) -> dict[str, Any]:
         """Convert to ChromaDB metadata format."""
+        import json
+
+        columns_data = [
+            {
+                "name": c.name,
+                "data_type": c.data_type,
+                "is_nullable": c.is_nullable,
+                "is_primary_key": c.is_primary_key,
+                "is_foreign_key": c.is_foreign_key,
+                "foreign_key_table": c.foreign_key_table,
+                "foreign_key_column": c.foreign_key_column,
+                "default_value": c.default_value,
+                "description": c.description,
+            }
+            for c in self.columns
+        ]
+
+        relationships_data = [
+            {
+                "from_table": r.from_table,
+                "from_column": r.from_column,
+                "to_table": r.to_table,
+                "to_column": r.to_column,
+                "relationship_type": r.relationship_type,
+            }
+            for r in self.relationships
+        ]
+
         return {
             "id": self.id,
             "schema_name": self.schema_name,
@@ -162,8 +190,11 @@ class TableInfo(BaseModel):
             "full_name": self.full_name,
             "column_names": ",".join(c.name for c in self.columns),
             "column_count": len(self.columns),
+            "columns_json": json.dumps(columns_data),
+            "relationships_json": json.dumps(relationships_data),
             "has_relationships": len(self.relationships) > 0,
             "description": self.description or "",
+            "row_count": self.row_count if self.row_count is not None else -1,
             "created_at": self.created_at.isoformat(),
         }
 

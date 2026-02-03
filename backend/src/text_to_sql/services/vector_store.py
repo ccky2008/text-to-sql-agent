@@ -98,12 +98,80 @@ class VectorStoreService:
         except Exception as e:
             raise VectorStoreError(f"Failed to list SQL pairs: {e}") from e
 
-    def delete_sql_pair(self, pair_id: str) -> None:
-        """Delete a SQL pair."""
+    def get_sql_pair(self, pair_id: str) -> dict[str, Any] | None:
+        """Get a single SQL pair by ID."""
         try:
+            result = self._sql_pairs.get(
+                ids=[pair_id],
+                include=["documents", "metadatas"],
+            )
+            if not result["ids"]:
+                return None
+            return {
+                "id": result["ids"][0],
+                "document": result["documents"][0] if result.get("documents") else None,
+                "metadata": result["metadatas"][0] if result.get("metadatas") else {},
+            }
+        except Exception as e:
+            raise VectorStoreError(f"Failed to get SQL pair: {e}") from e
+
+    def update_sql_pair(
+        self, pair_id: str, question: str | None = None, sql_query: str | None = None
+    ) -> dict[str, Any] | None:
+        """Update a SQL pair. Returns updated pair or None if not found."""
+        try:
+            existing = self.get_sql_pair(pair_id)
+            if not existing:
+                return None
+
+            current_meta = existing["metadata"]
+            new_question = question if question is not None else current_meta.get("question", "")
+            new_sql = sql_query if sql_query is not None else current_meta.get("sql_query", "")
+
+            pair = SQLPair(id=pair_id, question=new_question, sql_query=new_sql)
+            embedding = self._embedding_service.embed_text(pair.to_embedding_text())
+
+            self._sql_pairs.update(
+                ids=[pair_id],
+                embeddings=[embedding],
+                documents=[pair.to_embedding_text()],
+                metadatas=[pair.to_metadata()],
+            )
+
+            return {
+                "id": pair_id,
+                "metadata": pair.to_metadata(),
+            }
+        except Exception as e:
+            raise VectorStoreError(f"Failed to update SQL pair: {e}") from e
+
+    def delete_sql_pair(self, pair_id: str) -> bool:
+        """Delete a SQL pair. Returns True if deleted, False if not found."""
+        try:
+            if not self.sql_pair_exists(pair_id):
+                return False
             self._sql_pairs.delete(ids=[pair_id])
+            return True
         except Exception as e:
             raise VectorStoreError(f"Failed to delete SQL pair: {e}") from e
+
+    def delete_sql_pairs_bulk(self, pair_ids: list[str]) -> tuple[int, list[str]]:
+        """Delete multiple SQL pairs. Returns (deleted_count, not_found_ids)."""
+        try:
+            not_found = []
+            to_delete = []
+            for pair_id in pair_ids:
+                if self.sql_pair_exists(pair_id):
+                    to_delete.append(pair_id)
+                else:
+                    not_found.append(pair_id)
+
+            if to_delete:
+                self._sql_pairs.delete(ids=to_delete)
+
+            return len(to_delete), not_found
+        except Exception as e:
+            raise VectorStoreError(f"Failed to bulk delete SQL pairs: {e}") from e
 
     def get_sql_pairs_count(self) -> int:
         """Get total count of SQL pairs."""
@@ -166,12 +234,110 @@ class VectorStoreService:
         except Exception as e:
             raise VectorStoreError(f"Failed to list metadata: {e}") from e
 
-    def delete_metadata(self, entry_id: str) -> None:
-        """Delete a metadata entry."""
+    def get_metadata_entry(self, entry_id: str) -> dict[str, Any] | None:
+        """Get a single metadata entry by ID."""
         try:
+            result = self._metadata.get(
+                ids=[entry_id],
+                include=["documents", "metadatas"],
+            )
+            if not result["ids"]:
+                return None
+            return {
+                "id": result["ids"][0],
+                "document": result["documents"][0] if result.get("documents") else None,
+                "metadata": result["metadatas"][0] if result.get("metadatas") else {},
+            }
+        except Exception as e:
+            raise VectorStoreError(f"Failed to get metadata entry: {e}") from e
+
+    def update_metadata(
+        self,
+        entry_id: str,
+        title: str | None = None,
+        content: str | None = None,
+        category: str | None = None,
+        related_tables: list[str] | None = None,
+        keywords: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        """Update a metadata entry. Returns updated entry or None if not found."""
+        from text_to_sql.core.types import MetadataCategory
+
+        try:
+            existing = self.get_metadata_entry(entry_id)
+            if not existing:
+                return None
+
+            current_meta = existing["metadata"]
+
+            new_title = title if title is not None else current_meta.get("title", "")
+            new_content = content if content is not None else current_meta.get("content", "")
+            cat_str = category if category is not None else current_meta.get("category", "context")
+            new_category = MetadataCategory(cat_str)
+
+            current_tables = current_meta.get("related_tables", "")
+            if related_tables is not None:
+                new_related_tables = related_tables
+            else:
+                new_related_tables = current_tables.split(",") if current_tables else []
+
+            current_keywords = current_meta.get("keywords", "")
+            if keywords is not None:
+                new_keywords = keywords
+            else:
+                new_keywords = current_keywords.split(",") if current_keywords else []
+
+            entry = MetadataEntry(
+                id=entry_id,
+                title=new_title,
+                content=new_content,
+                category=new_category,
+                related_tables=new_related_tables,
+                keywords=new_keywords,
+            )
+            embedding = self._embedding_service.embed_text(entry.to_embedding_text())
+
+            self._metadata.update(
+                ids=[entry_id],
+                embeddings=[embedding],
+                documents=[entry.to_embedding_text()],
+                metadatas=[entry.to_metadata()],
+            )
+
+            return {
+                "id": entry_id,
+                "metadata": entry.to_metadata(),
+            }
+        except Exception as e:
+            raise VectorStoreError(f"Failed to update metadata: {e}") from e
+
+    def delete_metadata(self, entry_id: str) -> bool:
+        """Delete a metadata entry. Returns True if deleted, False if not found."""
+        try:
+            if not self.metadata_exists(entry_id):
+                return False
             self._metadata.delete(ids=[entry_id])
+            return True
         except Exception as e:
             raise VectorStoreError(f"Failed to delete metadata: {e}") from e
+
+    def delete_metadata_bulk(self, entry_ids: list[str]) -> tuple[int, list[str]]:
+        """Delete multiple metadata entries. Returns (deleted_count, not_found_ids)."""
+        try:
+            not_found = []
+            to_delete = []
+            for entry_id in entry_ids:
+                if self.metadata_exists(entry_id):
+                    to_delete.append(entry_id)
+                else:
+                    not_found.append(entry_id)
+
+            if to_delete:
+                self._metadata.delete(ids=to_delete)
+
+            return len(to_delete), not_found
+        except Exception as e:
+            raise VectorStoreError(f"Failed to bulk delete metadata: {e}") from e
 
     def get_metadata_count(self) -> int:
         """Get total count of metadata entries."""
@@ -232,12 +398,111 @@ class VectorStoreService:
         except Exception as e:
             raise VectorStoreError(f"Failed to list database info: {e}") from e
 
-    def delete_table_info(self, table_id: str) -> None:
-        """Delete table info."""
+    def get_table_info(self, table_id: str) -> dict[str, Any] | None:
+        """Get a single table info by ID."""
         try:
+            result = self._database_info.get(
+                ids=[table_id],
+                include=["documents", "metadatas"],
+            )
+            if not result["ids"]:
+                return None
+            return {
+                "id": result["ids"][0],
+                "document": result["documents"][0] if result.get("documents") else None,
+                "metadata": result["metadatas"][0] if result.get("metadatas") else {},
+            }
+        except Exception as e:
+            raise VectorStoreError(f"Failed to get table info: {e}") from e
+
+    def update_table_info(
+        self,
+        table_id: str,
+        schema_name: str | None = None,
+        table_name: str | None = None,
+        columns: list[dict] | None = None,
+        relationships: list[dict] | None = None,
+        description: str | None = None,
+        row_count: int | None = None,
+    ) -> dict[str, Any] | None:
+        """Update table info. Returns updated info or None if not found."""
+        from text_to_sql.models.data_sources import ColumnInfo, Relationship
+
+        try:
+            existing = self.get_table_info(table_id)
+            if not existing:
+                return None
+
+            current_meta = existing["metadata"]
+
+            new_schema = schema_name if schema_name is not None else current_meta.get("schema_name", "public")
+            new_table_name = table_name if table_name is not None else current_meta.get("table_name", "")
+
+            if columns is not None:
+                new_columns = [ColumnInfo(**col) for col in columns]
+            else:
+                new_columns = []
+
+            if relationships is not None:
+                new_relationships = [Relationship(**rel) for rel in relationships]
+            else:
+                new_relationships = []
+
+            new_description = description if description is not None else current_meta.get("description")
+            new_row_count = row_count if row_count is not None else current_meta.get("row_count")
+
+            table = TableInfo(
+                id=table_id,
+                schema_name=new_schema,
+                table_name=new_table_name,
+                columns=new_columns,
+                relationships=new_relationships,
+                description=new_description if new_description else None,
+                row_count=new_row_count if isinstance(new_row_count, int) else None,
+            )
+            embedding = self._embedding_service.embed_text(table.to_embedding_text())
+
+            self._database_info.update(
+                ids=[table_id],
+                embeddings=[embedding],
+                documents=[table.to_embedding_text()],
+                metadatas=[table.to_metadata()],
+            )
+
+            return {
+                "id": table_id,
+                "metadata": table.to_metadata(),
+            }
+        except Exception as e:
+            raise VectorStoreError(f"Failed to update table info: {e}") from e
+
+    def delete_table_info(self, table_id: str) -> bool:
+        """Delete table info. Returns True if deleted, False if not found."""
+        try:
+            if not self.table_exists(table_id):
+                return False
             self._database_info.delete(ids=[table_id])
+            return True
         except Exception as e:
             raise VectorStoreError(f"Failed to delete table info: {e}") from e
+
+    def delete_table_info_bulk(self, table_ids: list[str]) -> tuple[int, list[str]]:
+        """Delete multiple table info entries. Returns (deleted_count, not_found_ids)."""
+        try:
+            not_found = []
+            to_delete = []
+            for table_id in table_ids:
+                if self.table_exists(table_id):
+                    to_delete.append(table_id)
+                else:
+                    not_found.append(table_id)
+
+            if to_delete:
+                self._database_info.delete(ids=to_delete)
+
+            return len(to_delete), not_found
+        except Exception as e:
+            raise VectorStoreError(f"Failed to bulk delete table info: {e}") from e
 
     def get_database_info_count(self) -> int:
         """Get total count of table info entries."""
