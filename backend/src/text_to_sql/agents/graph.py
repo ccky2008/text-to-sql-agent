@@ -16,6 +16,9 @@ from text_to_sql.services.checkpointer import get_session_manager
 # Maximum retry attempts for SQL regeneration
 MAX_RETRIES = 2
 
+# Maximum exploration queries per request (to prevent infinite loops)
+MAX_EXPLORATIONS = 3
+
 
 def should_validate_or_respond(
     state: AgentState,
@@ -66,18 +69,45 @@ def increment_retry(state: AgentState) -> dict:
     return {"retry_count": state.get("retry_count", 0) + 1}
 
 
+def route_after_tool_execution(
+    state: AgentState,
+) -> Literal["sql_generator", "responder"]:
+    """Determine next step after tool execution.
+
+    Routes back to sql_generator if this was an exploration query and
+    the exploration count is below the limit. Otherwise routes to responder.
+    """
+    tool_results = state.get("tool_results", [])
+    if not tool_results:
+        return "responder"
+
+    last_result = tool_results[-1]
+    tool_name = last_result.get("tool_name", "")
+
+    if tool_name == "explore_column_values":
+        exploration_count = state.get("exploration_count", 0)
+        if exploration_count < MAX_EXPLORATIONS:
+            return "sql_generator"
+
+    return "responder"
+
+
 def _build_graph() -> StateGraph:
     """Build the graph structure without compiling.
 
     Graph flow:
     1. Retrieval - Fetch context from vector stores
     2. SQL Generator - Generate SQL from question + context
-       - If tool call requested -> Tool Executor -> Responder
+       - If exploration tool call requested -> Tool Executor -> SQL Generator (loop)
+       - If execute_sql tool call requested -> Tool Executor -> Responder
        - If out-of-scope or read-only request -> Responder (skip validation/execution)
     3. Validator - Validate SQL syntax and safety
        - If resource not found -> Responder (skip execution)
     4. Executor - Execute SQL (if valid)
     5. Responder - Generate natural language response
+
+    The exploration loop allows the LLM to discover correct database values before
+    generating the final SQL query (up to MAX_EXPLORATIONS times).
 
     If validation fails (and not a special response), retry SQL generation up to MAX_RETRIES times.
     """
@@ -112,8 +142,17 @@ def _build_graph() -> StateGraph:
         },
     )
 
-    # After tool execution, go to responder
-    graph.add_edge("tool_executor", "responder")
+    # Conditional routing after tool execution
+    # - For exploration queries: loop back to sql_generator to use discovered values
+    # - For SQL execution: go to responder
+    graph.add_conditional_edges(
+        "tool_executor",
+        route_after_tool_execution,
+        {
+            "sql_generator": "sql_generator",
+            "responder": "responder",
+        },
+    )
 
     # Conditional routing after validation
     graph.add_conditional_edges(

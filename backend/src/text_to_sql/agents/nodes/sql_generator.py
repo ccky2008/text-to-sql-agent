@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.tools.exploration_tools import explore_column_values
 from text_to_sql.agents.tools.sql_tools import execute_sql_query
 from text_to_sql.config import get_settings
 from text_to_sql.services.system_rules import (
@@ -66,24 +67,52 @@ When handling batch requests:
 - If the user doesn't specify a batch size, suggest using 2000-2500 records per batch
 
 ## TOOL USAGE
-You have access to the `execute_sql_query` tool which can directly execute SQL queries against the database.
+You have access to the following tools:
 
-When the user asks you to "run", "execute", or "show results" for a query, you SHOULD use the tool to execute the SQL and return the actual results. The tool will:
+### 1. `explore_column_values` - Value Discovery Tool
+Use this tool BEFORE generating a final SQL query when you need to discover the actual values stored in the database.
+
+**When to use explore_column_values:**
+- User uses descriptive terms that may not match exact database values (e.g., "PostgreSQL" vs "postgres")
+- Filtering on categorical columns (engine, instance_type, region, status, provider, etc.)
+- User asks about specific vendors, products, or types
+- You are uncertain about the exact value format in the database
+
+**Tool parameters:**
+- table_name: The table to query (e.g., "aws_rds", "aws_ec2")
+- column_name: The column to explore (e.g., "engine", "instance_type")
+- search_term: Optional filter for partial matching (case-insensitive)
+- limit: Maximum values to return (default: 20)
+
+**Examples of when to explore:**
+- User says "PostgreSQL RDS instances" → explore_column_values(table_name="aws_rds", column_name="engine", search_term="postgres")
+- User says "large EC2 instances" → explore_column_values(table_name="aws_ec2", column_name="instance_type", search_term="large")
+- User says "running instances" → explore_column_values(table_name="aws_ec2", column_name="status")
+- User says "Windows servers" → explore_column_values(table_name="aws_ec2", column_name="platform", search_term="windows")
+
+**Important exploration rules:**
+- Limit to 2-3 exploration queries per request to avoid excessive queries
+- Only explore when uncertain about exact values
+- Use the discovered values in your final SQL query
+- After exploration, generate the final query with the correct values found
+
+### 2. `execute_sql_query` - Direct Execution Tool
+When the user asks you to "run", "execute", or "show results" for a query, you SHOULD use this tool to execute the SQL and return the actual results. The tool will:
 - Validate the SQL for safety (read-only operations only)
 - Execute the query with pagination support
 - Return the results in a format suitable for display as an interactive table
 
-Tool parameters:
+**Tool parameters:**
 - sql: The SQL query to execute (required)
 - page: Page number for pagination (default: 1)
 - page_size: Number of rows per page (default: 100, max: 500)
 
-Use the tool when:
+**Use execute_sql_query when:**
 - The user explicitly asks to run/execute a query
 - The user wants to see actual data results
 - You need to verify query results
 
-Do NOT use the tool when:
+**Do NOT use execute_sql_query when:**
 - The user just asks you to write/generate a query
 - The request is out-of-scope or read-only violation
 - You're explaining query structure without execution
@@ -129,9 +158,52 @@ def _filter_system_columns_from_doc(
     )
 
 
+def _format_discovered_values(state: AgentState) -> str:
+    """Format discovered values from exploration queries for the prompt."""
+    exploration_queries = state.get("exploration_queries", [])
+    if not exploration_queries:
+        return ""
+
+    parts = [
+        "## Previously Discovered Database Values",
+        "Use these actual database values in your SQL query:\n",
+    ]
+
+    for exploration in exploration_queries:
+        if not exploration.get("success"):
+            continue
+
+        table = exploration.get("table", "unknown")
+        column = exploration.get("column", "unknown")
+        values = exploration.get("values", [])
+        search_term = exploration.get("search_term")
+
+        if not values:
+            continue
+
+        parts.append(f"### {table}.{column}")
+        if search_term:
+            parts.append(f"(searched for: '{search_term}')")
+
+        counts = exploration.get("counts", {})
+        value_strs = [
+            f"'{v}' ({counts[v]} rows)" if counts.get(v) else f"'{v}'"
+            for v in values[:10]
+        ]
+        parts.append(f"Values found: {', '.join(value_strs)}")
+        parts.append("")
+
+    return "\n".join(parts) if len(parts) > 2 else ""
+
+
 def _format_context(state: AgentState) -> str:
     """Format retrieved context for the prompt."""
     parts = []
+
+    # Format discovered values from exploration (if any) - put this first for emphasis
+    discovered_context = _format_discovered_values(state)
+    if discovered_context:
+        parts.append(discovered_context)
 
     # Format SQL pairs (few-shot examples)
     if state["sql_pairs"]:
@@ -254,8 +326,8 @@ async def sql_generator_node(state: AgentState) -> dict:
         temperature=0,
     )
 
-    # Bind the SQL execution tool
-    llm = base_llm.bind_tools([execute_sql_query])
+    # Bind both exploration and execution tools
+    llm = base_llm.bind_tools([explore_column_values, execute_sql_query])
 
     context = _format_context(state)
 

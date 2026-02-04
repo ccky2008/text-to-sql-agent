@@ -4,28 +4,27 @@ import logging
 from typing import Any
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.tools.exploration_tools import explore_column_values
 from text_to_sql.agents.tools.sql_tools import execute_sql_query
 from text_to_sql.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Registry of available tools
 TOOL_REGISTRY = {
     "execute_sql_query": execute_sql_query,
+    "explore_column_values": explore_column_values,
 }
 
 
 async def tool_executor_node(state: AgentState) -> dict[str, Any]:
     """Execute pending tool calls from the LLM.
 
-    This node processes tool calls requested by the LLM during SQL generation.
-    It dispatches each tool call to the appropriate handler and collects results.
+    Processes tool calls requested by the LLM during SQL generation and
+    dispatches each to the appropriate handler.
 
-    Currently supports:
+    Supported tools:
     - execute_sql_query: Execute SQL and return paginated results
-
-    Returns:
-        Updated state with tool execution results.
+    - explore_column_values: Discover actual column values for filtering
     """
     pending = state.get("pending_tool_call")
     if not pending:
@@ -97,6 +96,38 @@ async def tool_executor_node(state: AgentState) -> dict[str, Any]:
                     "executed": False,
                     "execution_error": result.get("error"),
                 })
+
+        # For column exploration, track the exploration state
+        elif tool_name == "explore_column_values":
+            exploration_count = state.get("exploration_count", 0) + 1
+            exploration_queries = list(state.get("exploration_queries", []))
+            discovered_values = dict(state.get("discovered_values", {}))
+
+            # Record this exploration
+            exploration_record = {
+                "table": result.get("table", tool_args.get("table_name", "")),
+                "column": result.get("column", tool_args.get("column_name", "")),
+                "search_term": result.get("search_term"),
+                "values": [v["value"] for v in result.get("values", [])],
+                "counts": {v["value"]: v["count"] for v in result.get("values", [])},
+                "total_distinct": result.get("total_distinct", 0),
+                "success": result.get("success", False),
+            }
+            exploration_queries.append(exploration_record)
+
+            # Update discovered values map
+            if result.get("success") and result.get("values"):
+                key = f"{exploration_record['table']}.{exploration_record['column']}"
+                discovered_values[key] = {
+                    "values": exploration_record["values"],
+                    "search_term": exploration_record["search_term"],
+                }
+
+            state_updates.update({
+                "exploration_count": exploration_count,
+                "exploration_queries": exploration_queries,
+                "discovered_values": discovered_values,
+            })
 
         return state_updates
 

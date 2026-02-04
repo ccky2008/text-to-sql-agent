@@ -67,6 +67,11 @@ class AgentState(TypedDict):
     tool_results: list[dict[str, Any]]  # Results from executed tools
     pending_tool_call: dict[str, Any] | None  # Current tool call being processed
 
+    # Value exploration tracking for intermediate queries to discover correct values
+    exploration_queries: list[dict[str, Any]]
+    exploration_count: int
+    discovered_values: dict[str, Any]
+
 
 def create_initial_state(
     question: str,
@@ -109,4 +114,7 @@ def create_initial_state(
         tool_calls=[],
         tool_results=[],
         pending_tool_call=None,
+        exploration_queries=[],
+        exploration_count=0,
+        discovered_values={},
     )
