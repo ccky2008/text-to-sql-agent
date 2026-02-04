@@ -48,6 +48,34 @@ def _get_known_tables() -> set[str]:
     }
 
 
+def _get_known_columns(table_name: str) -> set[str]:
+    """Get set of known column names for a table from vector store.
+
+    Args:
+        table_name: The table name to get columns for (case-insensitive).
+
+    Returns:
+        Set of lowercase column names for the table, or empty set if not found.
+    """
+    vector_store = get_vector_store_service()
+    db_tables = vector_store.list_database_info(limit=1000)
+
+    for t in db_tables:
+        meta = t.get("metadata", {})
+        if meta.get("table_name", "").lower() == table_name.lower():
+            columns = meta.get("columns", [])
+            result = set()
+            for col in columns:
+                if isinstance(col, dict):
+                    col_name = col.get("name", "")
+                    if col_name:
+                        result.add(col_name.lower())
+                elif isinstance(col, str) and col:
+                    result.add(col.lower())
+            return result
+    return set()
+
+
 @tool
 async def explore_column_values(
     table_name: str,
@@ -115,6 +143,20 @@ async def explore_column_values(
             "error": (
                 f"Table '{table_name}' not found. "
                 f"Available tables include: {', '.join(sorted(list(known_tables)[:10]))}"
+            ),
+        }
+
+    # Validate column exists in the table's schema
+    known_columns = _get_known_columns(table_name)
+    if known_columns and column_name.lower() not in known_columns:
+        return {
+            "success": False,
+            "values": [],
+            "total_distinct": 0,
+            "search_term": search_term,
+            "error": (
+                f"Column '{column_name}' not found in table '{table_name}'. "
+                f"Available columns: {', '.join(sorted(list(known_columns)[:15]))}"
             ),
         }
 
