@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from text_to_sql.api.v1.csv import router as csv_router
+from text_to_sql.api.v1.embeddings import router as embeddings_router
 from text_to_sql.api.v1.health import router as health_router
 from text_to_sql.api.v1.query import router as query_router
 from text_to_sql.api.v1.sessions import router as sessions_router
@@ -15,3 +16,4 @@ router.include_router(query_router, tags=["query"])
 router.include_router(sessions_router, tags=["sessions"])
 router.include_router(csv_router, tags=["csv"])
 router.include_router(suggestions_router, tags=["suggestions"])
+router.include_router(embeddings_router, tags=["embeddings"])
