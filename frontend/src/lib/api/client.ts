@@ -16,6 +16,11 @@ import type {
 
 const API_BASE = "/api/v1";
 
+// For SSE streaming, connect directly to the backend to avoid
+// Next.js rewrite proxy buffering which breaks real-time streaming.
+const STREAMING_API_BASE =
+  (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/v1";
+
 /**
  * Callback type for handling SSE events
  */
@@ -32,7 +37,7 @@ export async function queryWithStreaming(
   onEvent: SSEEventCallback,
   signal?: AbortSignal
 ): Promise<void> {
-  const response = await fetch(`${API_BASE}/query`, {
+  const response = await fetch(`${STREAMING_API_BASE}/query`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.agents.tools.exploration_tools import explore_column_values
 from text_to_sql.agents.tools.sql_tools import execute_sql_query
 from text_to_sql.config import get_settings
@@ -26,6 +27,9 @@ async def tool_executor_node(state: AgentState) -> dict[str, Any]:
     - execute_sql_query: Execute SQL and return paginated results
     - explore_column_values: Discover actual column values for filtering
     """
+    writer = get_writer()
+    writer({"type": "step_started", "step": "tool_executor", "label": "Running tool"})
+
     pending = state.get("pending_tool_call")
     if not pending:
         return {"tool_results": [], "pending_tool_call": None}

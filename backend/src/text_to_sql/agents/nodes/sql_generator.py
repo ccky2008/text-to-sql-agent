@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.agents.tools.exploration_tools import explore_column_values
 from text_to_sql.agents.tools.sql_tools import execute_sql_query
 from text_to_sql.config import get_settings
@@ -315,6 +316,9 @@ async def sql_generator_node(state: AgentState) -> dict:
     May return special response types for out-of-scope or read-only requests.
     Can also return tool calls for direct SQL execution.
     """
+    writer = get_writer()
+    writer({"type": "step_started", "step": "sql_generator", "label": "Generating SQL"})
+
     settings = get_settings()
 
     # Create LLM with tool binding

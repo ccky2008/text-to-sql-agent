@@ -65,6 +65,8 @@ export interface SuggestedQuestionsResponse {
 
 // SSE Event types
 export type SSEEventType =
+  | "step_started"
+  | "step_completed"
   | "retrieval_complete"
   | "sql_generated"
   | "validation_complete"
@@ -75,73 +77,6 @@ export type SSEEventType =
   | "suggested_questions"
   | "error"
   | "done";
-
-export interface SSEEvent {
-  event: SSEEventType;
-  data: Record<string, unknown>;
-}
-
-// Specific SSE event data types
-export interface RetrievalCompleteData {
-  sql_pairs_count: number;
-  metadata_count: number;
-  database_info_count: number;
-}
-
-export interface SQLGeneratedData {
-  sql: string;
-  explanation: string;
-}
-
-export interface ValidationCompleteData {
-  is_valid: boolean;
-  errors: string[];
-  warnings: string[];
-}
-
-export interface ExecutionCompleteData {
-  executed: boolean;
-  row_count: number | null;
-  columns: string[] | null;
-  results: Record<string, unknown>[] | null;
-  total_count: number | null;
-  has_more: boolean;
-  page: number;
-  page_size: number;
-  csv_available: boolean;
-  csv_exceeds_limit: boolean;
-  query_token: string | null;
-}
-
-export interface ToolExecutionCompleteData {
-  tool_name: string;
-  success: boolean;
-  rows: Record<string, unknown>[] | null;
-  columns: string[] | null;
-  row_count: number;
-  total_count: number | null;
-  has_more: boolean;
-  page: number;
-  page_size: number;
-  query_token: string | null;
-  error: string | null;
-}
-
-export interface TokenData {
-  token: string;
-}
-
-export interface ResponseCompleteData {
-  response: string;
-}
-
-export interface ErrorData {
-  error: string;
-}
-
-export interface DoneData {
-  session_id: string;
-}
 
 // Session types
 export interface SessionInfo {

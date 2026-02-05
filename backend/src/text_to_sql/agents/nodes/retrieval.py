@@ -1,6 +1,7 @@
 """Retrieval node for fetching context from vector stores."""
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.services.vector_store import get_vector_store_service
 
 
@@ -12,6 +13,9 @@ def retrieval_node(state: AgentState) -> dict:
     2. Domain metadata - for business rules and context
     3. Database info - for schema information
     """
+    writer = get_writer()
+    writer({"type": "step_started", "step": "retrieval", "label": "Retrieving context"})
+
     question = state["question"]
     vector_store = get_vector_store_service()
 

@@ -3,6 +3,7 @@
 import re
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.config import get_settings
 from text_to_sql.services.database import get_database_service
 from text_to_sql.services.query_cache import get_query_cache
@@ -59,6 +60,9 @@ async def executor_node(state: AgentState) -> dict:
     Only executes if the SQL is valid and execution is requested.
     First runs a COUNT query to get total rows, then runs paginated query.
     """
+    writer = get_writer()
+    writer({"type": "step_started", "step": "executor", "label": "Executing query"})
+
     sql = state.get("generated_sql")
 
     # Base error response (immutable pattern - create fresh dict each return)

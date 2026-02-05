@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { queryWithStreaming } from "@/lib/api/client";
 import type { SSEEventType } from "@/lib/api/types";
-import type { Message, SQLResult } from "@/types/chat";
+import type { AgentStep, Message, SQLResult } from "@/types/chat";
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -62,6 +62,7 @@ export function useChat() {
       let streamedContent = "";
       let sqlResult: SQLResult | undefined;
       let suggestedQuestions: string[] = [];
+      let steps: AgentStep[] = [];
 
       abortControllerRef.current = new AbortController();
 
@@ -75,6 +76,46 @@ export function useChat() {
           },
           (event: SSEEventType, data: Record<string, unknown>) => {
             switch (event) {
+              case "step_started":
+                // Mark any currently active step as completed
+                steps = steps.map((s) =>
+                  s.status === "active"
+                    ? { ...s, status: "completed" as const }
+                    : s
+                );
+                // Add the new active step
+                steps = [
+                  ...steps,
+                  {
+                    name: data.step as string,
+                    label: data.label as string,
+                    status: "active" as const,
+                  },
+                ];
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, steps }
+                      : msg
+                  )
+                );
+                break;
+
+              case "step_completed":
+                steps = steps.map((s) =>
+                  s.name === (data.step as string)
+                    ? { ...s, status: "completed" as const }
+                    : s
+                );
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, steps }
+                      : msg
+                  )
+                );
+                break;
+
               case "sql_generated":
                 sqlResult = {
                   sql: data.sql as string,

@@ -1,6 +1,7 @@
 """SQL validation node."""
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.agents.tools.sql_tools import validate_sql, validate_tables_exist
 
 
@@ -13,6 +14,9 @@ def validator_node(state: AgentState) -> dict:
     3. Safety checks (no dangerous statements)
     4. Table existence verification
     """
+    writer = get_writer()
+    writer({"type": "step_started", "step": "validator", "label": "Validating SQL"})
+
     # Check if this is a special response (out-of-scope or read-only)
     special_type = state.get("special_response_type")
     if special_type:
