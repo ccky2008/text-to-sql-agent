@@ -4,6 +4,14 @@
 
 export type MessageRole = "user" | "assistant";
 
+export type StepStatus = "pending" | "active" | "completed" | "error";
+
+export interface AgentStep {
+  name: string;
+  label: string;
+  status: StepStatus;
+}
+
 export interface SQLResult {
   sql: string;
   explanation: string | null;
@@ -36,6 +44,7 @@ export interface Message {
   isStreaming?: boolean;
   error?: string;
   suggestedQuestions?: string[];
+  steps?: AgentStep[];
 }
 
 export interface ChatState {

@@ -3,6 +3,7 @@
 import type { Message } from "@/types/chat";
 import { SQLDisplay } from "./SQLDisplay";
 import { ResultsTable } from "./ResultsTable";
+import { StepProgress } from "./StepProgress";
 import { StreamingIndicator } from "./StreamingIndicator";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import clsx from "clsx";
@@ -27,10 +28,19 @@ export function MessageBubble({ message, onSelectQuestion }: MessageBubbleProps)
             : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
         )}
       >
+        {/* Step progress (replaces generic streaming indicator when steps available) */}
+        {message.isStreaming && message.steps && message.steps.length > 0 && (
+          <StepProgress steps={message.steps} />
+        )}
+
         {/* Message content */}
         <div className="whitespace-pre-wrap break-words">
           {message.content}
-          {message.isStreaming && !message.content && <StreamingIndicator />}
+          {message.isStreaming &&
+            !message.content &&
+            (!message.steps || message.steps.length === 0) && (
+              <StreamingIndicator />
+            )}
         </div>
 
         {/* SQL Result (for assistant messages) */}

@@ -3,13 +3,13 @@
 import json
 import logging
 from collections.abc import AsyncIterator
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
 from text_to_sql.agents.graph import get_agent_graph
-from text_to_sql.agents.nodes.responder import responder_node_streaming
 from text_to_sql.agents.state import create_initial_state
 from text_to_sql.models.requests import QueryRequest
 from text_to_sql.models.responses import PaginationInfo, QueryResponse
@@ -21,16 +21,61 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _sse(event: str, data: dict[str, Any], **json_kwargs: Any) -> dict:
+    """Build an SSE envelope dict."""
+    return {"event": event, "data": json.dumps(data, **json_kwargs)}
+
+
+def _execution_event(node_output: dict, request: QueryRequest) -> dict:
+    """Build an execution_complete SSE event from executor node output."""
+    return _sse(
+        "execution_complete",
+        {
+            "row_count": node_output.get("row_count"),
+            "columns": node_output.get("columns"),
+            "results": node_output.get("results", []),
+            "total_count": node_output.get("total_count"),
+            "has_more": node_output.get("has_more_results", False),
+            "page": request.page,
+            "page_size": request.page_size,
+            "csv_available": node_output.get("csv_available", False),
+            "csv_exceeds_limit": node_output.get("csv_exceeds_limit", False),
+            "query_token": node_output.get("query_token"),
+        },
+        default=str,
+    )
+
+
+def _tool_execution_event(tool_result: dict) -> dict:
+    """Build a tool_execution_complete SSE event from a single tool result."""
+    result_data = tool_result.get("result") or {}
+    return _sse(
+        "tool_execution_complete",
+        {
+            "tool_name": tool_result.get("tool_name", ""),
+            "success": tool_result.get("success", False),
+            "rows": result_data.get("rows"),
+            "columns": result_data.get("columns"),
+            "row_count": result_data.get("row_count", 0),
+            "total_count": result_data.get("total_count"),
+            "has_more": result_data.get("has_more", False),
+            "page": result_data.get("page", 1),
+            "page_size": result_data.get("page_size", 100),
+            "query_token": result_data.get("query_token"),
+            "error": tool_result.get("error"),
+        },
+        default=str,
+    )
+
+
 async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
     """Stream query processing events."""
     session_id = request.session_id or str(uuid4())
     session_manager = get_session_manager()
 
-    # Create or get session
     if not session_manager.get_session(session_id):
         session_manager.create_session(session_id)
 
-    # Create initial state with pagination
     state = create_initial_state(
         request.question,
         session_id,
@@ -38,95 +83,62 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
         page_size=request.page_size,
     )
 
-    # Get graph and config
     graph = await get_agent_graph()
     config = session_manager.get_config(session_id)
 
     try:
-        # Stream through the graph nodes
+        # Stream through the graph nodes using combined stream modes:
+        # - "updates": emits node completion events (existing behavior)
+        # - "custom": emits step_started and token events from within nodes
         collected_state = dict(state)
 
-        async for event in graph.astream(state, config=config):
-            for node_name, node_output in event.items():
-                collected_state.update(node_output)
+        async for mode, chunk in graph.astream(
+            state, config=config, stream_mode=["updates", "custom"]
+        ):
+            if mode == "custom":
+                event_type = chunk.get("type")
+                if event_type == "step_started":
+                    yield _sse("step_started", {
+                        "step": chunk["step"],
+                        "label": chunk["label"],
+                    })
+                elif event_type == "token":
+                    yield _sse("token", {"content": chunk["content"]})
 
-                if node_name == "retrieval":
-                    yield {
-                        "event": "retrieval_complete",
-                        "data": json.dumps({
+            elif mode == "updates":
+                for node_name, node_output in chunk.items():
+                    collected_state.update(node_output)
+                    yield _sse("step_completed", {"step": node_name})
+
+                    if node_name == "retrieval":
+                        yield _sse("retrieval_complete", {
                             "sql_pairs": len(node_output.get("sql_pairs", [])),
                             "metadata": len(node_output.get("metadata", [])),
                             "database_info": len(node_output.get("database_info", [])),
-                        }),
-                    }
+                        })
 
-                elif node_name == "sql_generator":
-                    yield {
-                        "event": "sql_generated",
-                        "data": json.dumps({
+                    elif node_name == "sql_generator":
+                        yield _sse("sql_generated", {
                             "sql": node_output.get("generated_sql"),
                             "explanation": node_output.get("sql_explanation"),
-                        }),
-                    }
+                        })
 
-                elif node_name == "validator":
-                    yield {
-                        "event": "validation_complete",
-                        "data": json.dumps({
+                    elif node_name == "validator":
+                        yield _sse("validation_complete", {
                             "is_valid": node_output.get("is_valid", False),
                             "errors": node_output.get("validation_errors", []),
                             "warnings": node_output.get("validation_warnings", []),
-                        }),
-                    }
+                        })
 
-                elif node_name == "executor":
-                    if node_output.get("executed"):
-                        yield {
-                            "event": "execution_complete",
-                            "data": json.dumps({
-                                "row_count": node_output.get("row_count"),
-                                "columns": node_output.get("columns"),
-                                "results": node_output.get("results", []),
-                                "total_count": node_output.get("total_count"),
-                                "has_more": node_output.get("has_more_results", False),
-                                "page": request.page,
-                                "page_size": request.page_size,
-                                "csv_available": node_output.get("csv_available", False),
-                                "csv_exceeds_limit": node_output.get("csv_exceeds_limit", False),
-                                "query_token": node_output.get("query_token"),
-                            }, default=str),
-                        }
+                    elif node_name == "executor":
+                        if node_output.get("executed"):
+                            yield _execution_event(node_output, request)
 
-                elif node_name == "tool_executor":
-                    # Handle LLM-driven tool execution results
-                    tool_results = node_output.get("tool_results", [])
-                    for tool_result in tool_results:
-                        result_data = tool_result.get("result") or {}
-                        yield {
-                            "event": "tool_execution_complete",
-                            "data": json.dumps({
-                                "tool_name": tool_result.get("tool_name", ""),
-                                "success": tool_result.get("success", False),
-                                "rows": result_data.get("rows"),
-                                "columns": result_data.get("columns"),
-                                "row_count": result_data.get("row_count", 0),
-                                "total_count": result_data.get("total_count"),
-                                "has_more": result_data.get("has_more", False),
-                                "page": result_data.get("page", 1),
-                                "page_size": result_data.get("page_size", 100),
-                                "query_token": result_data.get("query_token"),
-                                "error": tool_result.get("error"),
-                            }, default=str),
-                        }
+                    elif node_name == "tool_executor":
+                        for tool_result in node_output.get("tool_results", []):
+                            yield _tool_execution_event(tool_result)
 
-        # Stream the natural language response tokens
-        async for token in responder_node_streaming(collected_state):
-            yield {
-                "event": "token",
-                "data": json.dumps({"content": token}),
-            }
-
-        # Generate follow-up questions (async, after response)
+        # Generate follow-up questions
         try:
             suggestions_service = get_suggestions_service()
             followup_questions = await suggestions_service.generate_followup_questions(
@@ -138,28 +150,15 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
                 n=3,
             )
             if followup_questions:
-                yield {
-                    "event": "suggested_questions",
-                    "data": json.dumps({"questions": followup_questions}),
-                }
+                yield _sse("suggested_questions", {"questions": followup_questions})
         except Exception as e:
-            logger.warning(f"Failed to generate follow-up questions: {e}")
-            # Don't fail the request if follow-up generation fails
+            logger.warning("Failed to generate follow-up questions: %s", e)
 
-        # Update session
         session_manager.update_session(session_id)
-
-        # Send done event
-        yield {
-            "event": "done",
-            "data": json.dumps({"session_id": session_id}),
-        }
+        yield _sse("done", {"session_id": session_id})
 
     except Exception as e:
-        yield {
-            "event": "error",
-            "data": json.dumps({"error": str(e)}),
-        }
+        yield _sse("error", {"error": str(e)})
 
 
 @router.post("/query")
@@ -220,7 +219,7 @@ async def query(request: QueryRequest):
                 n=3,
             )
         except Exception as e:
-            logger.warning(f"Failed to generate follow-up questions: {e}")
+            logger.warning("Failed to generate follow-up questions: %s", e)
 
         return QueryResponse(
             question=request.question,

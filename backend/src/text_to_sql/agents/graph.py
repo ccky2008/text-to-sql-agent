@@ -11,6 +11,7 @@ from text_to_sql.agents.nodes.sql_generator import sql_generator_node
 from text_to_sql.agents.nodes.tool_executor import tool_executor_node
 from text_to_sql.agents.nodes.validator import validator_node
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.services.checkpointer import get_session_manager
 
 # Maximum retry attempts for SQL regeneration
@@ -66,6 +67,8 @@ def should_retry(state: AgentState) -> Literal["sql_generator", "responder"]:
 
 def increment_retry(state: AgentState) -> dict:
     """Increment retry counter."""
+    writer = get_writer()
+    writer({"type": "step_started", "step": "increment_retry", "label": "Retrying"})
     return {"retry_count": state.get("retry_count", 0) + 1}
 
 

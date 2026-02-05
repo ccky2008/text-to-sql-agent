@@ -1,12 +1,12 @@
 """Natural language response generation node."""
 
 import json
-from collections.abc import AsyncIterator
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
 
 from text_to_sql.agents.state import AgentState
+from text_to_sql.agents.streaming import get_writer
 from text_to_sql.config import get_settings
 
 # Response templates for special scenarios
@@ -134,51 +134,21 @@ async def responder_node(state: AgentState) -> dict:
 
     Handles special response types (out-of-scope, read-only, resource not found)
     and summarizes SQL results in human-readable form.
+
+    When run via graph.astream() with stream_mode including "custom",
+    streams tokens via get_stream_writer() for real-time SSE delivery.
     """
+    writer = get_writer()
+    writer({"type": "step_started", "step": "responder", "label": "Generating response"})
+
     # Check for template responses (special types, no results)
     template_response = _get_template_response(state)
     if template_response:
+        writer({"type": "token", "content": template_response})
         return {
             "natural_language_response": template_response,
             "messages": [AIMessage(content=template_response)],
         }
-
-    settings = get_settings()
-
-    llm = AzureChatOpenAI(
-        azure_endpoint=settings.azure_openai_endpoint,
-        api_key=settings.azure_openai_api_key.get_secret_value(),
-        api_version=settings.azure_openai_api_version,
-        azure_deployment=settings.azure_openai_deployment_name,
-        temperature=0.3,
-    )
-
-    context = _format_results_for_prompt(state)
-
-    messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=context),
-    ]
-
-    response = await llm.ainvoke(messages)
-    content = response.content if isinstance(response.content, str) else str(response.content)
-
-    return {
-        "natural_language_response": content,
-        "messages": [AIMessage(content=content)],
-    }
-
-
-async def responder_node_streaming(state: AgentState) -> AsyncIterator[str]:
-    """Generate a natural language response with streaming.
-
-    Handles special response types and yields tokens as they are generated for SSE streaming.
-    """
-    # Check for template responses (special types, no results)
-    template_response = _get_template_response(state)
-    if template_response:
-        yield template_response
-        return
 
     settings = get_settings()
 
@@ -198,6 +168,14 @@ async def responder_node_streaming(state: AgentState) -> AsyncIterator[str]:
         HumanMessage(content=context),
     ]
 
+    # Stream LLM tokens via the custom stream writer
+    full_response = ""
     async for chunk in llm.astream(messages):
         if chunk.content:
-            yield chunk.content
+            writer({"type": "token", "content": chunk.content})
+            full_response += chunk.content
+
+    return {
+        "natural_language_response": full_response,
+        "messages": [AIMessage(content=full_response)],
+    }
