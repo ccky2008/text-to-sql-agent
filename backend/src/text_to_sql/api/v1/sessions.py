@@ -12,7 +12,7 @@ router = APIRouter(prefix="/sessions")
 async def list_sessions() -> SessionListResponse:
     """List all active sessions."""
     session_manager = get_session_manager()
-    sessions = session_manager.list_sessions()
+    sessions = await session_manager.list_sessions()
 
     return SessionListResponse(
         sessions=[
@@ -32,7 +32,7 @@ async def list_sessions() -> SessionListResponse:
 async def get_session(session_id: str) -> SessionInfo:
     """Get information about a specific session."""
     session_manager = get_session_manager()
-    session = session_manager.get_session(session_id)
+    session = await session_manager.get_session(session_id)
 
     if not session:
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
@@ -50,7 +50,7 @@ async def delete_session(session_id: str) -> dict:
     """Delete a session."""
     session_manager = get_session_manager()
 
-    if not session_manager.delete_session(session_id):
+    if not await session_manager.delete_session(session_id):
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
     return {"status": "deleted", "session_id": session_id}

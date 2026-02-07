@@ -41,6 +41,17 @@ Examples of out-of-scope questions:
 This system is READ-ONLY. If the user attempts to modify, insert, update, or delete data, respond with ONLY:
 [READ_ONLY] This system only supports querying (reading) cloud resource data. Data modifications are not permitted. How can I help you find information about your cloud resources?
 
+## VAGUE OR AMBIGUOUS QUESTIONS
+If the user's question is too vague or ambiguous to generate a meaningful SQL query, respond with ONLY:
+[NEEDS_CLARIFICATION] <your clarifying question>
+
+Examples:
+- "show me the resources" → [NEEDS_CLARIFICATION] Could you specify which type of cloud resources you'd like to see? For example, EC2 instances, S3 buckets, RDS databases, or Azure VMs?
+- "what about the costs" → [NEEDS_CLARIFICATION] Could you clarify what cost information you're looking for? For example, costs by service, by region, or for a specific resource type?
+- "give me some data" → [NEEDS_CLARIFICATION] I'd be happy to help! Could you specify what kind of cloud resource data you're interested in? For example, compute instances, storage, databases, or networking resources?
+
+IMPORTANT: Err on the side of answering rather than asking for clarification. Only ask for clarification when the question is genuinely too vague to generate any useful query. If you can make a reasonable assumption about what the user wants, go ahead and generate the SQL.
+
 ## IMPORTANT RULES FOR VALID QUERIES
 1. Only generate SELECT or WITH (CTE) statements - never INSERT, UPDATE, DELETE, DROP, etc.
 2. Use proper PostgreSQL syntax and functions
@@ -242,7 +253,7 @@ def _parse_sql_response(content: str) -> tuple[str | None, str | None, str | Non
 
     Returns:
         Tuple of (sql, explanation, special_response_type)
-        special_response_type is one of: "OUT_OF_SCOPE", "READ_ONLY", or None
+        special_response_type is one of: "OUT_OF_SCOPE", "READ_ONLY", "NEEDS_CLARIFICATION", or None
     """
     # Check for special response markers first
     if content.strip().startswith("[OUT_OF_SCOPE]"):
@@ -252,6 +263,10 @@ def _parse_sql_response(content: str) -> tuple[str | None, str | None, str | Non
     if content.strip().startswith("[READ_ONLY]"):
         message = content.replace("[READ_ONLY]", "").strip()
         return None, message, "READ_ONLY"
+
+    if content.strip().startswith("[NEEDS_CLARIFICATION]"):
+        message = content.replace("[NEEDS_CLARIFICATION]", "").strip()
+        return None, message, "NEEDS_CLARIFICATION"
 
     # Extract SQL from code block (semicolons are stripped by database service)
     sql_match = re.search(r"```sql\s*(.*?)\s*```", content, re.DOTALL | re.IGNORECASE)

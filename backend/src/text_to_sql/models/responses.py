@@ -48,14 +48,17 @@ class StreamEvent(BaseModel):
     """Model for SSE stream events."""
 
     event: Literal[
+        "step_started",
+        "step_completed",
         "retrieval_complete",
         "sql_generated",
         "validation_complete",
         "execution_complete",
-        "tool_execution_complete",  # New: for LLM-driven tool execution
+        "tool_execution_complete",
         "token",
         "response_complete",
-        "suggested_questions",  # New: for follow-up question suggestions
+        "suggested_questions",
+        "clarification_needed",
         "error",
         "done",
     ]

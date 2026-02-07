@@ -53,11 +53,20 @@ class Settings(BaseSettings):
     postgres_password: SecretStr = Field(..., description="PostgreSQL password")
 
     # Session Storage Configuration
-    session_storage_type: Literal["memory", "sqlite"] = Field(
-        default="memory", description="Session storage type"
+    session_storage_type: Literal["memory", "sqlite", "mongodb"] = Field(
+        default="mongodb", description="Session storage type"
     )
     session_storage_path: str = Field(
         default="./sessions.db", description="Path for SQLite session storage"
+    )
+
+    # MongoDB Configuration
+    mongodb_uri: str = Field(
+        default="mongodb://localhost:27017",
+        description="MongoDB connection URI",
+    )
+    mongodb_database: str = Field(
+        default="text_to_sql_agent", description="MongoDB database name"
     )
 
     # API Configuration

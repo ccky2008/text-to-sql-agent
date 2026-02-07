@@ -24,7 +24,7 @@ class AgentState(TypedDict):
     generated_sql: str | None
     sql_explanation: str | None
 
-    # Special response type (OUT_OF_SCOPE, READ_ONLY, RESOURCE_NOT_FOUND, or None)
+    # Special response type (OUT_OF_SCOPE, READ_ONLY, RESOURCE_NOT_FOUND, NEEDS_CLARIFICATION, or None)
     special_response_type: str | None
 
     # Validation results

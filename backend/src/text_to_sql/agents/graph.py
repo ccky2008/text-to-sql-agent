@@ -35,7 +35,7 @@ def should_validate_or_respond(
         return "tool_executor"
 
     special_type = state.get("special_response_type")
-    if special_type in ("OUT_OF_SCOPE", "READ_ONLY"):
+    if special_type in ("OUT_OF_SCOPE", "READ_ONLY", "NEEDS_CLARIFICATION"):
         return "responder"
     return "validator"
 
@@ -57,7 +57,7 @@ def should_retry(state: AgentState) -> Literal["sql_generator", "responder"]:
     Does not retry for special response types (out-of-scope, read-only, resource not found).
     """
     special_type = state.get("special_response_type")
-    if special_type in ("OUT_OF_SCOPE", "READ_ONLY", "RESOURCE_NOT_FOUND"):
+    if special_type in ("OUT_OF_SCOPE", "READ_ONLY", "RESOURCE_NOT_FOUND", "NEEDS_CLARIFICATION"):
         return "responder"
 
     if not state.get("is_valid", False) and state.get("retry_count", 0) < MAX_RETRIES:
@@ -192,7 +192,7 @@ async def create_agent_graph(with_checkpointer: bool = True):
 
     if with_checkpointer:
         session_manager = get_session_manager()
-        checkpointer = await session_manager._init_checkpointer()
+        checkpointer = await session_manager.initialize()
         return graph.compile(checkpointer=checkpointer)
 
     return graph.compile()

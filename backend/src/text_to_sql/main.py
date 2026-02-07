@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from text_to_sql import __version__
 from text_to_sql.api.v1 import router as v1_router
+from text_to_sql.services.checkpointer import get_session_manager
 from text_to_sql.services.database import get_database_service
 
 
@@ -17,7 +18,14 @@ async def lifespan(app: FastAPI):
     db_service = get_database_service()
     await db_service.connect()
 
+    # Startup: Initialize session manager (MongoDB connection, etc.)
+    session_manager = get_session_manager()
+    await session_manager.initialize()
+
     yield
+
+    # Shutdown: Close session manager
+    await session_manager.close()
 
     # Shutdown: Close database connections
     await db_service.close()

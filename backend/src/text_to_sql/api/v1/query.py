@@ -73,8 +73,8 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
     session_id = request.session_id or str(uuid4())
     session_manager = get_session_manager()
 
-    if not session_manager.get_session(session_id):
-        session_manager.create_session(session_id)
+    if not await session_manager.get_session(session_id):
+        await session_manager.create_session(session_id)
 
     state = create_initial_state(
         request.question,
@@ -138,6 +138,12 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
                         for tool_result in node_output.get("tool_results", []):
                             yield _tool_execution_event(tool_result)
 
+        # Emit clarification event if the agent needs more info
+        if collected_state.get("special_response_type") == "NEEDS_CLARIFICATION":
+            yield _sse("clarification_needed", {
+                "message": collected_state.get("natural_language_response", ""),
+            })
+
         # Generate follow-up questions
         try:
             suggestions_service = get_suggestions_service()
@@ -154,7 +160,7 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
         except Exception as e:
             logger.warning("Failed to generate follow-up questions: %s", e)
 
-        session_manager.update_session(session_id)
+        await session_manager.update_session(session_id)
         yield _sse("done", {"session_id": session_id})
 
     except Exception as e:
@@ -174,8 +180,8 @@ async def query(request: QueryRequest):
     session_id = request.session_id or str(uuid4())
     session_manager = get_session_manager()
 
-    if not session_manager.get_session(session_id):
-        session_manager.create_session(session_id)
+    if not await session_manager.get_session(session_id):
+        await session_manager.create_session(session_id)
 
     state = create_initial_state(
         request.question,
@@ -190,7 +196,7 @@ async def query(request: QueryRequest):
         # Run the graph to completion
         final_state = await graph.ainvoke(state, config=config)
 
-        session_manager.update_session(session_id)
+        await session_manager.update_session(session_id)
 
         # Build pagination info if total_count is available
         total_count = final_state.get("total_count")

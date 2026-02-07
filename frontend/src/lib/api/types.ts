@@ -75,6 +75,7 @@ export type SSEEventType =
   | "token"
   | "response_complete"
   | "suggested_questions"
+  | "clarification_needed"
   | "error"
   | "done";
 

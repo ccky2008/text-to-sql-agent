@@ -5,14 +5,14 @@ from text_to_sql.agents.streaming import get_writer
 from text_to_sql.agents.tools.sql_tools import validate_sql, validate_tables_exist
 
 
-def validator_node(state: AgentState) -> dict:
+async def validator_node(state: AgentState) -> dict:
     """Validate the generated SQL query.
 
     Performs:
     1. Check for special response types (out-of-scope, read-only)
     2. Syntax validation using sqlglot
     3. Safety checks (no dangerous statements)
-    4. Table existence verification
+    4. Table existence verification against the actual database
     """
     writer = get_writer()
     writer({"type": "step_started", "step": "validator", "label": "Validating SQL"})
@@ -45,7 +45,7 @@ def validator_node(state: AgentState) -> dict:
 
     # If basic validation passed, check table existence (now returns error, not warning)
     if result.is_valid:
-        tables_valid, missing_tables, table_error = validate_tables_exist(sql)
+        tables_valid, missing_tables, table_error = await validate_tables_exist(sql)
         if not tables_valid and table_error:
             errors.append(table_error)
             return {

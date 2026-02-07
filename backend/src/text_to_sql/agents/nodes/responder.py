@@ -30,6 +30,11 @@ RESPONSE_TEMPLATES = {
         "This could mean the resources don't exist or don't match your filters. "
         "Try adjusting your query or ask about a different resource type."
     ),
+    "NEEDS_CLARIFICATION": (
+        "Could you provide more details about what you're looking for? "
+        "For example, specify the type of cloud resources, region, or any filters "
+        "you'd like to apply."
+    ),
 }
 
 SYSTEM_PROMPT = """You are a helpful data analyst assistant specializing in Azure and AWS cloud resource metadata. Your task is to explain SQL query results in clear, natural language.
@@ -75,13 +80,17 @@ def _format_results_for_prompt(state: AgentState) -> str:
     if state.get("sql_explanation"):
         parts.append(f"\n## SQL Explanation\n{state['sql_explanation']}")
 
-    if not state.get("is_valid"):
+    if state.get("executed") and state.get("results") is not None:
+        # Query executed successfully — show results regardless of is_valid flag
+        pass  # Fall through to results section below
+    elif not state.get("is_valid"):
         parts.append(f"\n## Validation Failed\nErrors: {state.get('validation_errors', [])}")
     elif not state.get("executed"):
         parts.append("\n## Query Not Executed")
         if state.get("execution_error"):
             parts.append(f"Error: {state['execution_error']}")
-    else:
+
+    if state.get("executed") and state.get("results") is not None:
         parts.append("\n## Query Results")
         parts.append(f"Rows returned: {state.get('row_count', 0)}")
 

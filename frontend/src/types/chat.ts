@@ -45,6 +45,7 @@ export interface Message {
   error?: string;
   suggestedQuestions?: string[];
   steps?: AgentStep[];
+  isClarification?: boolean;
 }
 
 export interface ChatState {
