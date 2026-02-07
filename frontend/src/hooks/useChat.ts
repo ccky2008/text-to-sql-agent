@@ -237,6 +237,16 @@ export function useChat() {
                 streamedContent = data.response as string;
                 break;
 
+              case "clarification_needed":
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, isClarification: true }
+                      : msg
+                  )
+                );
+                break;
+
               case "suggested_questions":
                 suggestedQuestions = (data.questions as string[]) ?? [];
                 setMessages((prev) =>

@@ -72,7 +72,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(True, [], None)):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(True, [], None)):
 
             result = await execute_sql_query.ainvoke({
                 "sql": "SELECT id, name FROM users LIMIT 10",
@@ -110,7 +110,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(False, ["nonexistent"], "Table not found")):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(False, ["nonexistent"], "Table not found")):
 
             result = await execute_sql_query.ainvoke({
                 "sql": "SELECT * FROM nonexistent",
@@ -128,7 +128,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(True, [], None)):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(True, [], None)):
 
             result = await execute_sql_query.ainvoke({
                 "sql": "SELECT id FROM users LIMIT 10",
@@ -147,7 +147,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(True, [], None)):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(True, [], None)):
 
             await execute_sql_query.ainvoke({
                 "sql": "SELECT id FROM users LIMIT 10",
@@ -178,7 +178,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(True, [], None)):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(True, [], None)):
 
             result = await execute_sql_query.ainvoke({
                 "sql": "SELECT id FROM users",
@@ -195,7 +195,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(True, [], None)):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(True, [], None)):
 
             result = await execute_sql_query.ainvoke({
                 "sql": "SELECT id FROM users LIMIT 10",
@@ -223,7 +223,7 @@ class TestExecuteSQLQuery:
         with patch("text_to_sql.agents.tools.sql_tools.get_settings", return_value=mock_settings), \
              patch("text_to_sql.agents.tools.sql_tools.get_database_service", return_value=mock_db_service), \
              patch("text_to_sql.agents.tools.sql_tools.get_query_cache", return_value=mock_query_cache), \
-             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", return_value=(True, [], None)):
+             patch("text_to_sql.agents.tools.sql_tools.validate_tables_exist", new_callable=AsyncMock, return_value=(True, [], None)):
 
             result = await execute_sql_query.ainvoke({
                 "sql": "SELECT id FROM users LIMIT 10",

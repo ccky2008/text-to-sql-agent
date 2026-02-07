@@ -82,6 +82,7 @@ class TestToolExecutorNode:
         assert tool_result["tool_call_id"] == "call-456"
 
         # Check state updates
+        assert result["is_valid"] is True
         assert result["executed"] is True
         assert result["results"] == [{"id": 1, "name": "test"}]
         assert result["columns"] == ["id", "name"]

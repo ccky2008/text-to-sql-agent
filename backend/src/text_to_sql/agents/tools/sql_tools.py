@@ -119,8 +119,11 @@ def validate_sql(sql: str) -> ValidationResult:
     )
 
 
-def validate_tables_exist(sql: str) -> tuple[bool, list[str], str | None]:
-    """Check if tables referenced in SQL exist in the database info.
+async def validate_tables_exist(sql: str) -> tuple[bool, list[str], str | None]:
+    """Check if tables referenced in SQL exist in the actual database.
+
+    Checks against the real PostgreSQL database first. Falls back to the
+    vector store if the database connection is unavailable.
 
     Args:
         sql: The SQL query to check
@@ -144,12 +147,19 @@ def validate_tables_exist(sql: str) -> tuple[bool, list[str], str | None]:
         if not tables_in_query:
             return True, [], None
 
-        # Check against database info
-        vector_store = get_vector_store_service()
-        db_tables = vector_store.list_database_info(limit=1000)
-        known_tables = {
-            t["metadata"].get("table_name", "").lower() for t in db_tables
-        }
+        # Check against the actual PostgreSQL database first
+        known_tables: set[str] = set()
+        try:
+            db_service = get_database_service()
+            real_tables = await db_service.get_table_names()
+            known_tables = {t.lower() for t in real_tables}
+        except Exception:
+            # Database unavailable — fall back to vector store
+            vector_store = get_vector_store_service()
+            db_tables = vector_store.list_database_info(limit=1000)
+            known_tables = {
+                t["metadata"].get("table_name", "").lower() for t in db_tables
+            }
 
         missing = [t for t in tables_in_query if t not in known_tables]
 
@@ -178,7 +188,7 @@ def validate_tables_exist(sql: str) -> tuple[bool, list[str], str | None]:
 
 
 @tool
-def validate_sql_query(sql: str) -> dict[str, Any]:
+async def validate_sql_query(sql: str) -> dict[str, Any]:
     """Validate a SQL query for syntax and safety.
 
     Args:
@@ -193,7 +203,7 @@ def validate_sql_query(sql: str) -> dict[str, Any]:
 
     # Check table existence if basic validation passed
     if result.is_valid:
-        tables_valid, _, table_error = validate_tables_exist(sql)
+        tables_valid, _, table_error = await validate_tables_exist(sql)
         if not tables_valid and table_error:
             errors.append(table_error)
 
@@ -247,7 +257,7 @@ async def execute_sql_query(
         )
 
     # Check table existence
-    tables_valid, _, table_error = validate_tables_exist(sql)
+    tables_valid, _, table_error = await validate_tables_exist(sql)
     if not tables_valid and table_error:
         return _error_result(table_error, page=page, page_size=page_size)
 

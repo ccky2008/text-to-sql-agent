@@ -82,6 +82,7 @@ async def tool_executor_node(state: AgentState) -> dict[str, Any]:
                 settings = get_settings()
                 total_count = result.get("total_count")
                 state_updates.update({
+                    "is_valid": True,
                     "executed": True,
                     "results": result.get("rows"),
                     "row_count": result.get("row_count"),

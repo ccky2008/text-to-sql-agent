@@ -29,6 +29,9 @@ dependencies = [
     # Databases
     "chromadb>=0.6.0",
     "asyncpg>=0.30.0",
+    "pymongo>=4.9.0",
+    "motor>=3.6.0",
+    "langgraph-checkpoint-mongodb>=0.3.0",
 
     # CLI
     "typer>=0.15.0",
