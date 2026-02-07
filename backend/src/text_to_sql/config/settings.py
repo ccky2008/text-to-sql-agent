@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     # MongoDB Configuration
     mongodb_uri: str = Field(
-        default="mongodb://localhost:27017",
+        default="mongodb://root:Today%402026@localhost:27017",
         description="MongoDB connection URI",
     )
     mongodb_database: str = Field(
