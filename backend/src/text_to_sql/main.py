@@ -9,6 +9,7 @@ from text_to_sql import __version__
 from text_to_sql.api.v1 import router as v1_router
 from text_to_sql.services.checkpointer import get_session_manager
 from text_to_sql.services.database import get_database_service
+from text_to_sql.services.sql_pair_candidates import get_candidate_manager
 
 
 @asynccontextmanager
@@ -22,7 +23,14 @@ async def lifespan(app: FastAPI):
     session_manager = get_session_manager()
     await session_manager.initialize()
 
+    # Startup: Initialize SQL pair candidate manager
+    candidate_manager = get_candidate_manager()
+    await candidate_manager.initialize()
+
     yield
+
+    # Shutdown: Close candidate manager
+    await candidate_manager.close()
 
     # Shutdown: Close session manager
     await session_manager.close()

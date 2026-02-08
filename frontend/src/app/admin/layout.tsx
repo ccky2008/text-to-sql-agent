@@ -21,6 +21,12 @@ export default function AdminLayout({
                 >
                   Embeddings
                 </Link>
+                <Link
+                  href="/admin/training-data"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                >
+                  Training Data
+                </Link>
               </nav>
             </div>
             <Link
