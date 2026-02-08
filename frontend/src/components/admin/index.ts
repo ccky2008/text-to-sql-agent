@@ -5,3 +5,5 @@ export { SQLPairForm } from "./SQLPairForm";
 export { MetadataForm } from "./MetadataForm";
 export { DatabaseInfoForm } from "./DatabaseInfoForm";
 export { DataTable } from "./DataTable";
+export { CandidateReviewTable } from "./CandidateReviewTable";
+export { CandidateEditForm } from "./CandidateEditForm";

@@ -14,11 +14,38 @@ from text_to_sql.agents.state import create_initial_state
 from text_to_sql.models.requests import QueryRequest
 from text_to_sql.models.responses import PaginationInfo, QueryResponse
 from text_to_sql.services.checkpointer import get_session_manager
+from text_to_sql.services.sql_pair_candidates import get_candidate_manager
 from text_to_sql.services.suggestions import get_suggestions_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _maybe_save_candidate(
+    state: dict[str, Any], question: str, session_id: str
+) -> None:
+    """Save a SQL pair candidate if the query executed successfully."""
+    try:
+        sql = state.get("generated_sql")
+        is_successful = (
+            sql
+            and state.get("is_valid")
+            and state.get("executed")
+            and not state.get("execution_error")
+            and not state.get("special_response_type")
+        )
+        if not is_successful:
+            return
+
+        manager = get_candidate_manager()
+        await manager.save_candidate(
+            question=question,
+            sql_query=sql,
+            session_id=session_id,
+        )
+    except Exception as e:
+        logger.warning("Failed to save SQL pair candidate: %s", e)
 
 
 def _sse(event: str, data: dict[str, Any], **json_kwargs: Any) -> dict:
@@ -161,6 +188,7 @@ async def stream_query(request: QueryRequest) -> AsyncIterator[dict]:
             logger.warning("Failed to generate follow-up questions: %s", e)
 
         await session_manager.update_session(session_id)
+        await _maybe_save_candidate(collected_state, request.question, session_id)
         yield _sse("done", {"session_id": session_id})
 
     except Exception as e:
@@ -197,6 +225,7 @@ async def query(request: QueryRequest):
         final_state = await graph.ainvoke(state, config=config)
 
         await session_manager.update_session(session_id)
+        await _maybe_save_candidate(final_state, request.question, session_id)
 
         # Build pagination info if total_count is available
         total_count = final_state.get("total_count")
